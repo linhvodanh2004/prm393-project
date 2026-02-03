@@ -1,0 +1,85 @@
+class RegisterDTO {
+  final String email;
+  final String password;
+  final String fullName;
+  final String phoneNumber;
+  final String address;
+  final int age;
+  final String bio;
+
+  RegisterDTO({
+    required this.email,
+    required this.password,
+    required this.fullName,
+    required this.phoneNumber,
+    required this.address,
+    required this.age,
+    required this.bio,
+  });
+
+  // Validate all fields
+  String? validate() {
+    if (email.trim().isEmpty) {
+      return 'Email is required';
+    }
+    if (!email.contains('@')) {
+      return 'Invalid email format';
+    }
+    if (password.isEmpty) {
+      return 'Password is required';
+    }
+    if (password.length < 6) {
+      return 'Password must be at least 6 characters';
+    }
+    if (fullName.trim().isEmpty) {
+      return 'Full name is required';
+    }
+    if (phoneNumber.trim().isEmpty) {
+      return 'Phone number is required';
+    }
+    if (address.trim().isEmpty) {
+      return 'Address is required';
+    }
+    if (age < 1 || age > 150) {
+      return 'Invalid age';
+    }
+    if (bio.trim().isEmpty) {
+      return 'Bio is required';
+    }
+    return null; // No errors
+  }
+
+  // Convert to Map for Firestore (excluding password)
+  Map<String, dynamic> toFirestore() {
+    return {
+      'email': email.trim(),
+      'fullName': fullName.trim(),
+      'phoneNumber': phoneNumber.trim(),
+      'address': address.trim(),
+      'age': age,
+      'bio': bio.trim(),
+      'authProvider': 'email',
+    };
+  }
+
+  // Create a copy with updated fields
+  RegisterDTO copyWith({
+    String? email,
+    String? password,
+    String? fullName,
+    String? phoneNumber,
+    String? address,
+    int? age,
+    String? bio,
+  }) {
+    return RegisterDTO(
+      email: email ?? this.email,
+      password: password ?? this.password,
+      fullName: fullName ?? this.fullName,
+      phoneNumber: phoneNumber ?? this.phoneNumber,
+      address: address ?? this.address,
+      age: age ?? this.age,
+      bio: bio ?? this.bio,
+    );
+  }
+}
