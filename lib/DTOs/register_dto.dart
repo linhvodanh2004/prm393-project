@@ -4,8 +4,8 @@ class RegisterDTO {
   final String fullName;
   final String phoneNumber;
   final String address;
-  final int age;
-  final String bio;
+  final DateTime dateOfBirth;
+  final String role;
 
   RegisterDTO({
     required this.email,
@@ -13,8 +13,8 @@ class RegisterDTO {
     required this.fullName,
     required this.phoneNumber,
     required this.address,
-    required this.age,
-    required this.bio,
+    required this.dateOfBirth,
+    this.role = 'USER',
   });
 
   // Validate all fields
@@ -40,11 +40,12 @@ class RegisterDTO {
     if (address.trim().isEmpty) {
       return 'Address is required';
     }
-    if (age < 1 || age > 150) {
-      return 'Invalid age';
+    // Simple verification (must be at least 18)
+    if (DateTime.now().difference(dateOfBirth).inDays < 365 * 18) {
+      return 'You must be at least 18 years old';
     }
-    if (bio.trim().isEmpty) {
-      return 'Bio is required';
+    if (role != 'USER' && role != 'HOST' && role != 'ADMIN') {
+      return 'Invalid role selected';
     }
     return null; // No errors
   }
@@ -56,9 +57,9 @@ class RegisterDTO {
       'fullName': fullName.trim(),
       'phoneNumber': phoneNumber.trim(),
       'address': address.trim(),
-      'age': age,
-      'bio': bio.trim(),
+      'dateOfBirth': dateOfBirth,
       'authProvider': 'email',
+      'role': role,
     };
   }
 
@@ -69,8 +70,8 @@ class RegisterDTO {
     String? fullName,
     String? phoneNumber,
     String? address,
-    int? age,
-    String? bio,
+    DateTime? dateOfBirth,
+    String? role,
   }) {
     return RegisterDTO(
       email: email ?? this.email,
@@ -78,8 +79,8 @@ class RegisterDTO {
       fullName: fullName ?? this.fullName,
       phoneNumber: phoneNumber ?? this.phoneNumber,
       address: address ?? this.address,
-      age: age ?? this.age,
-      bio: bio ?? this.bio,
+      dateOfBirth: dateOfBirth ?? this.dateOfBirth,
+      role: role ?? this.role,
     );
   }
 }

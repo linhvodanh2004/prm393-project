@@ -147,22 +147,12 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
                                 const SizedBox(height: 12),
                               ],
 
-                              // Age
-                              if (_userData?.age != null) ...[
+                              // Date of Birth
+                              if (_userData?.dateOfBirth != null) ...[
                                 _buildInfoRow(
-                                  Icons.cake,
-                                  'Age',
-                                  _userData!.age.toString(),
-                                ),
-                                const SizedBox(height: 12),
-                              ],
-
-                              // Bio
-                              if (_userData?.bio != null) ...[
-                                _buildInfoRow(
-                                  Icons.info,
-                                  'Bio',
-                                  _userData!.bio!,
+                                  Icons.calendar_today,
+                                  'Date of Birth',
+                                  "${_userData!.dateOfBirth!.day.toString().padLeft(2, '0')}/${_userData!.dateOfBirth!.month.toString().padLeft(2, '0')}/${_userData!.dateOfBirth!.year}",
                                 ),
                               ],
                             ],

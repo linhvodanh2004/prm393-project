@@ -6,11 +6,11 @@ class UserModel {
   final String? fullName;
   final String? phoneNumber;
   final String? address;
-  final int? age;
-  final String? bio;
+  final DateTime? dateOfBirth;
   final String? displayName;
   final String? photoURL;
   final String authProvider;
+  final String role;
   final DateTime? createdAt;
 
   UserModel({
@@ -19,11 +19,11 @@ class UserModel {
     this.fullName,
     this.phoneNumber,
     this.address,
-    this.age,
-    this.bio,
+    this.dateOfBirth,
     this.displayName,
     this.photoURL,
     required this.authProvider,
+    this.role = 'USER',
     this.createdAt,
   });
 
@@ -36,11 +36,13 @@ class UserModel {
       fullName: data['fullName'],
       phoneNumber: data['phoneNumber'],
       address: data['address'],
-      age: data['age'],
-      bio: data['bio'],
+      dateOfBirth: data['dateOfBirth'] != null
+          ? (data['dateOfBirth'] as Timestamp).toDate()
+          : null,
       displayName: data['displayName'],
       photoURL: data['photoURL'],
       authProvider: data['authProvider'] ?? 'unknown',
+      role: data['role'] ?? 'USER',
       createdAt: data['createdAt'] != null
           ? (data['createdAt'] as Timestamp).toDate()
           : null,
@@ -55,11 +57,13 @@ class UserModel {
       fullName: data['fullName'],
       phoneNumber: data['phoneNumber'],
       address: data['address'],
-      age: data['age'],
-      bio: data['bio'],
+      dateOfBirth: data['dateOfBirth'] != null
+          ? (data['dateOfBirth'] as Timestamp).toDate()
+          : null,
       displayName: data['displayName'],
       photoURL: data['photoURL'],
       authProvider: data['authProvider'] ?? 'unknown',
+      role: data['role'] ?? 'USER',
       createdAt: data['createdAt'] != null
           ? (data['createdAt'] as Timestamp).toDate()
           : null,
@@ -73,11 +77,11 @@ class UserModel {
       if (fullName != null) 'fullName': fullName,
       if (phoneNumber != null) 'phoneNumber': phoneNumber,
       if (address != null) 'address': address,
-      if (age != null) 'age': age,
-      if (bio != null) 'bio': bio,
+      if (dateOfBirth != null) 'dateOfBirth': Timestamp.fromDate(dateOfBirth!),
       if (displayName != null) 'displayName': displayName,
       if (photoURL != null) 'photoURL': photoURL,
       'authProvider': authProvider,
+      'role': role,
       'createdAt': createdAt != null
           ? Timestamp.fromDate(createdAt!)
           : FieldValue.serverTimestamp(),
@@ -96,8 +100,7 @@ class UserModel {
     return fullName != null &&
         phoneNumber != null &&
         address != null &&
-        age != null &&
-        bio != null;
+        dateOfBirth != null;
   }
 
   // Check if user is Google user
@@ -105,4 +108,9 @@ class UserModel {
 
   // Check if user is email/password user
   bool get isEmailUser => authProvider == 'email';
+
+  // Role checks
+  bool get isAdmin => role == 'ADMIN';
+  bool get isHost => role == 'HOST';
+  bool get isUser => role == 'USER';
 }

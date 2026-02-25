@@ -21,14 +21,14 @@ class _RegisterScreenState extends State<RegisterScreen>
   final TextEditingController _fullNameController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _addressController = TextEditingController();
-  final TextEditingController _ageController = TextEditingController();
-  final TextEditingController _bioController = TextEditingController();
+  final TextEditingController _dobController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmPasswordController =
   TextEditingController();
 
   int _currentStep = 0; // 0 = thông tin cá nhân, 1 = bảo mật
+  DateTime? _dateOfBirth;
   String? _errorMessage;
   bool _isLoading = false;
 
@@ -70,8 +70,7 @@ class _RegisterScreenState extends State<RegisterScreen>
     _fullNameController.dispose();
     _phoneController.dispose();
     _addressController.dispose();
-    _ageController.dispose();
-    _bioController.dispose();
+    _dobController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
@@ -113,8 +112,7 @@ class _RegisterScreenState extends State<RegisterScreen>
       fullName: _fullNameController.text.trim(),
       phoneNumber: _phoneController.text.trim(),
       address: _addressController.text.trim(),
-      age: int.parse(_ageController.text.trim()),
-      bio: _bioController.text.trim(),
+      dateOfBirth: _dateOfBirth!,
     );
 
     final user = await _authService.registerWithDetails(registerDTO);
@@ -205,6 +203,7 @@ class _RegisterScreenState extends State<RegisterScreen>
             ),
             const SizedBox(height: 32),
 
+
             // Full name
             _FormField(
               controller: _fullNameController,
@@ -229,22 +228,46 @@ class _RegisterScreenState extends State<RegisterScreen>
             ),
             const SizedBox(height: 16),
 
-            // Age
-            _FormField(
-              controller: _ageController,
-              label: 'Tuổi',
-              hint: '25',
-              icon: Icons.cake_outlined,
-              keyboardType: TextInputType.number,
-              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-              validator: (v) {
-                if (v == null || v.trim().isEmpty) return 'Vui lòng nhập tuổi';
-                final age = int.tryParse(v);
-                if (age == null || age < 1 || age > 150) {
-                  return 'Tuổi không hợp lệ';
+            // Date of birth
+            GestureDetector(
+              onTap: () async {
+                FocusScope.of(context).unfocus();
+                final date = await showDatePicker(
+                  context: context,
+                  initialDate: _dateOfBirth ?? DateTime(2000),
+                  firstDate: DateTime(1900),
+                  lastDate: DateTime.now(),
+                  builder: (context, child) {
+                    return Theme(
+                      data: Theme.of(context).copyWith(
+                        colorScheme: const ColorScheme.dark(
+                          primary: Color(0xFFD4A853),
+                          onPrimary: Colors.black,
+                          surface: Color(0xFF1A1A1A),
+                          onSurface: Colors.white,
+                        ),
+                      ),
+                      child: child!,
+                    );
+                  },
+                );
+                if (date != null) {
+                  setState(() {
+                    _dateOfBirth = date;
+                    _dobController.text =
+                        "${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}";
+                  });
                 }
-                return null;
               },
+              child: AbsorbPointer(
+                child: _FormField(
+                  controller: _dobController,
+                  label: 'Ngày sinh',
+                  hint: 'DD/MM/YYYY',
+                  icon: Icons.calendar_today_outlined,
+                  validator: (v) => _dateOfBirth == null ? 'Vui lòng chọn ngày sinh' : null,
+                ),
+              ),
             ),
             const SizedBox(height: 16),
 
@@ -260,16 +283,6 @@ class _RegisterScreenState extends State<RegisterScreen>
             ),
             const SizedBox(height: 16),
 
-            // Bio
-            _FormField(
-              controller: _bioController,
-              label: 'Giới thiệu bản thân',
-              hint: 'Tôi thường du lịch vào cuối tuần...',
-              icon: Icons.notes_rounded,
-              maxLines: 3,
-              validator: (v) =>
-              (v == null || v.trim().isEmpty) ? 'Vui lòng nhập giới thiệu' : null,
-            ),
 
             const SizedBox(height: 36),
 
@@ -925,3 +938,4 @@ class _LoginCta extends StatelessWidget {
     );
   }
 }
+
