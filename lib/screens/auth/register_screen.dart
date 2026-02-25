@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../services/auth_service.dart';
-import '../DTOs/register_dto.dart';
+import '../../services/auth_service.dart';
+import '../../DTOs/register_dto.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
