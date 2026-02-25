@@ -118,6 +118,17 @@ class AuthService {
     }
   }
 
+  // Update user profile in Firestore
+  Future<bool> updateUserProfile(String uid, Map<String, dynamic> data) async {
+    try {
+      await _firestore.collection('users').doc(uid).set(data, SetOptions(merge: true));
+      return true;
+    } catch (e) {
+      print('Update user profile error: ${e.toString()}');
+      return false;
+    }
+  }
+
   // Sign out
   Future<void> signOut() async {
     await _googleSignIn.signOut();
