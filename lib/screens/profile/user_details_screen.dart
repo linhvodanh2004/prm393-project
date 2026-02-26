@@ -3,6 +3,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../../services/auth_service.dart';
 import '../../models/user_model.dart';
 import '../../main.dart';
+import 'edit_profile_screen.dart';
+import 'change_password_screen.dart';
 
 class UserDetailsScreen extends StatefulWidget {
   const UserDetailsScreen({super.key});
@@ -40,209 +42,288 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
     final user = FirebaseAuth.instance.currentUser;
 
     return Scaffold(
+      backgroundColor: const Color(0xFF0D0D0D),
       appBar: AppBar(
-        title: const Text('User Profile'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () async {
-              await _authService.signOut();
-              if (context.mounted) {
-                Navigator.of(context).pushAndRemoveUntil(
-                  MaterialPageRoute(builder: (_) => AuthWrapper()),
-                  (route) => false,
-                );
-              }
-            },
+        title: const Text(
+          'Hồ sơ của tôi',
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w600,
+            fontSize: 18,
           ),
-        ],
+        ),
+        backgroundColor: const Color(0xFF111111),
+        elevation: 0,
+        centerTitle: true,
+        automaticallyImplyLeading: false,
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : user == null
-              ? const Center(child: Text('No user logged in'))
-              : SingleChildScrollView(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      // Profile Picture
-                      if (_userData?.photoURL != null)
-                        CircleAvatar(
-                          radius: 50,
-                          backgroundImage: NetworkImage(_userData!.photoURL!),
-                        )
-                      else
-                        const CircleAvatar(
-                          radius: 50,
-                          child: Icon(Icons.person, size: 50),
-                        ),
-                      const SizedBox(height: 20),
+          ? Center(
+              child: Text(
+                'No user logged in',
+                style: TextStyle(color: Colors.white.withOpacity(0.5)),
+              ),
+            )
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  // Profile Picture
+                  if (_userData?.photoURL != null)
+                    CircleAvatar(
+                      radius: 50,
+                      backgroundImage: NetworkImage(_userData!.photoURL!),
+                    )
+                  else
+                    const CircleAvatar(
+                      radius: 50,
+                      child: Icon(Icons.person, size: 50),
+                    ),
+                  const SizedBox(height: 20),
 
-                      // User Info Card
-                      Card(
-                        elevation: 4,
-                        child: Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                'Account Information',
-                                style: TextStyle(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              const Divider(),
-                              const SizedBox(height: 10),
-
-                              // Email
-                              _buildInfoRow(
-                                Icons.email,
-                                'Email',
-                                _userData?.email ?? user.email ?? 'Not available',
-                              ),
-                              const SizedBox(height: 12),
-
-                              // Auth Provider
-                              _buildInfoRow(
-                                Icons.security,
-                                'Auth Provider',
-                                _userData?.authProvider ?? 'Unknown',
-                              ),
-                              const SizedBox(height: 12),
-
-                              // Display Name (for Google users)
-                              if (_userData?.displayName != null) ...[
-                                _buildInfoRow(
-                                  Icons.badge,
-                                  'Display Name',
-                                  _userData!.displayName!,
-                                ),
-                                const SizedBox(height: 12),
-                              ],
-
-                              // Full Name (for email/password users)
-                              if (_userData?.fullName != null) ...[
-                                _buildInfoRow(
-                                  Icons.person,
-                                  'Full Name',
-                                  _userData!.fullName!,
-                                ),
-                                const SizedBox(height: 12),
-                              ],
-
-                              // Phone Number
-                              if (_userData?.phoneNumber != null) ...[
-                                _buildInfoRow(
-                                  Icons.phone,
-                                  'Phone',
-                                  _userData!.phoneNumber!,
-                                ),
-                                const SizedBox(height: 12),
-                              ],
-
-                              // Address
-                              if (_userData?.address != null) ...[
-                                _buildInfoRow(
-                                  Icons.home,
-                                  'Address',
-                                  _userData!.address!,
-                                ),
-                                const SizedBox(height: 12),
-                              ],
-
-                              // Date of Birth
-                              if (_userData?.dateOfBirth != null) ...[
-                                _buildInfoRow(
-                                  Icons.calendar_today,
-                                  'Date of Birth',
-                                  "${_userData!.dateOfBirth!.day.toString().padLeft(2, '0')}/${_userData!.dateOfBirth!.month.toString().padLeft(2, '0')}/${_userData!.dateOfBirth!.year}",
-                                ),
-                              ],
-                            ],
-                          ),
-                        ),
+                  // User Info Card
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(20.0),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1A1A1A),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: Colors.white.withOpacity(0.08),
+                        width: 1,
                       ),
-                      const SizedBox(height: 20),
-
-                      // Profile Status Badge
-                      if (_userData != null) ...[
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                          decoration: BoxDecoration(
-                            color: _userData!.hasCompleteProfile ? Colors.green : Colors.orange,
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Text(
-                            _userData!.hasCompleteProfile
-                                ? '✓ Complete Profile'
-                                : '⚠ Incomplete Profile',
-                            style: const TextStyle(color: Colors.white),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Thông tin tài khoản',
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.9),
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
-                        const SizedBox(height: 20),
-                      ],
+                        const SizedBox(height: 16),
+                        Divider(color: Colors.white.withOpacity(0.1)),
+                        const SizedBox(height: 16),
 
-                      // Logout Button
-                      ElevatedButton.icon(
+                        // Email
+                        _buildInfoRow(
+                          Icons.email,
+                          'Email',
+                          _userData?.email ?? user.email ?? 'Chưa cập nhật',
+                        ),
+                        const SizedBox(height: 12),
+
+                        // Auth Provider
+                        _buildInfoRow(
+                          Icons.security,
+                          'Phương thức đăng nhập',
+                          _userData?.authProvider ?? 'Không xác định',
+                        ),
+                        const SizedBox(height: 12),
+
+                        // Full Name (for email/password users)
+                        if (_userData?.fullName != null) ...[
+                          _buildInfoRow(
+                            Icons.person,
+                            'Họ và tên',
+                            _userData!.fullName!,
+                          ),
+                          const SizedBox(height: 12),
+                        ],
+
+                        // Phone Number
+                        if (_userData?.phoneNumber != null) ...[
+                          _buildInfoRow(
+                            Icons.phone,
+                            'Số điện thoại',
+                            _userData!.phoneNumber!,
+                          ),
+                          const SizedBox(height: 12),
+                        ],
+
+                        // Address
+                        if (_userData?.address != null) ...[
+                          _buildInfoRow(
+                            Icons.home,
+                            'Địa chỉ',
+                            _userData!.address!,
+                          ),
+                          const SizedBox(height: 12),
+                        ],
+
+                        // Date of Birth
+                        if (_userData?.dateOfBirth != null) ...[
+                          _buildInfoRow(
+                            Icons.calendar_today,
+                            'Ngày sinh (DD/MM/YYYY)',
+                            "${_userData!.dateOfBirth!.day.toString().padLeft(2, '0')}/${_userData!.dateOfBirth!.month.toString().padLeft(2, '0')}/${_userData!.dateOfBirth!.year}",
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Profile Status Badge
+                  if (_userData != null) ...[
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: _userData!.hasCompleteProfile
+                            ? Colors.green
+                            : Colors.orange,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        _userData!.hasCompleteProfile
+                            ? '✓ Hồ sơ đã hoàn tất'
+                            : '⚠ Hồ sơ chưa hoàn tất',
+                        style: const TextStyle(color: Colors.white),
+                      ),
+                    ),
+                    const SizedBox(height: 32),
+                  ],
+
+                  // ACTION BUTTONS
+                  if (_userData != null) ...[
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
                         onPressed: () async {
-                          await _authService.signOut();
-                          if (context.mounted) {
-                            Navigator.of(context).pushAndRemoveUntil(
-                              MaterialPageRoute(builder: (_) => AuthWrapper()),
-                              (route) => false,
-                            );
+                          final result = await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  EditProfileScreen(userModel: _userData!),
+                            ),
+                          );
+                          if (result == true) {
+                            _loadUserData(); // Refresh data after edit
                           }
                         },
-                        icon: const Icon(Icons.logout),
-                        label: const Text('Sign Out'),
+                        icon: const Icon(Icons.edit_outlined, size: 20),
+                        label: const Text('Chỉnh sửa hồ sơ'),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.red,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 32,
-                            vertical: 12,
+                          backgroundColor: const Color(0xFFD4A853),
+                          foregroundColor: Colors.black,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          elevation: 0,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Disable change password if user is logged in with google
+                    if (_userData?.authProvider != 'google') ...[
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const ChangePasswordScreen(),
+                              ),
+                            );
+                          },
+                          icon: const Icon(Icons.lock_reset, size: 20),
+                          label: const Text('Đổi mật khẩu'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.white,
+                            side: BorderSide(
+                              color: Colors.white.withOpacity(0.2),
+                            ),
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
                           ),
                         ),
                       ),
                     ],
+                    const SizedBox(height: 32),
+                  ],
+
+                  // Logout Button
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () async {
+                        await _authService.signOut();
+                        if (context.mounted) {
+                          Navigator.of(context).pushAndRemoveUntil(
+                            MaterialPageRoute(builder: (_) => AuthWrapper()),
+                            (route) => false,
+                          );
+                        }
+                      },
+                      icon: const Icon(Icons.logout, size: 20),
+                      label: const Text('Đăng xuất'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: const Color(0xFFFF6B6B),
+                        side: BorderSide(
+                          color: const Color(0xFFFF6B6B).withOpacity(0.5),
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                    ),
                   ),
-                ),
+                  const SizedBox(height: 32),
+                ],
+              ),
+            ),
     );
   }
 
   Widget _buildInfoRow(IconData icon, String label, String value) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(icon, size: 20, color: Colors.grey[700]),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey[600],
-                  fontWeight: FontWeight.w500,
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 20, color: const Color(0xFFD4A853).withOpacity(0.8)),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.white.withOpacity(0.4),
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                value,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w400,
+                const SizedBox(height: 4),
+                Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    color: Colors.white,
+                    fontWeight: FontWeight.w400,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

@@ -27,6 +27,46 @@ class AuthService {
     }
   }
 
+  // Send password reset email
+  Future<bool> sendPasswordResetEmail(String email) async {
+    try {
+      await _auth.sendPasswordResetEmail(email: email);
+      return true;
+    } catch (e) {
+      print('Password reset error: ${e.toString()}');
+      return false;
+    }
+  }
+
+  // Change password while signed in
+  Future<String?> changePassword(String currentPassword, String newPassword) async {
+    try {
+      User? user = _auth.currentUser;
+      if (user == null) return "Không tìm thấy phiên đăng nhập";
+
+      // 1. Re-authenticate user
+      AuthCredential credential = EmailAuthProvider.credential(
+        email: user.email!,
+        password: currentPassword,
+      );
+
+      await user.reauthenticateWithCredential(credential);
+
+      // 2. Change password
+      await user.updatePassword(newPassword);
+      return null; // Return null on success
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'wrong-password') {
+        return "Mật khẩu hiện tại không đúng";
+      } else if (e.code == 'weak-password') {
+        return "Mật khẩu mới quá yếu";
+      }
+      return e.message;
+    } catch (e) {
+      return "Đã xảy ra lỗi: ${e.toString()}";
+    }
+  }
+
   // Sign in with Google
   Future<User?> signInWithGoogle() async {
     try {

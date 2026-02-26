@@ -72,7 +72,7 @@ class AuthWrapper extends StatelessWidget {
               }
 
               // Otherwise route to Home
-              return const HomeScreen();
+              return HomeScreen(userModel: userModel);
             },
           );
         }

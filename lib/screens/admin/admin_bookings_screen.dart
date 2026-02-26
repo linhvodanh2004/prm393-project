@@ -1,0 +1,24 @@
+﻿import 'package:flutter/material.dart';
+
+class AdminBookingsScreen extends StatelessWidget {
+  const AdminBookingsScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFF0D0D0D),
+      appBar: AppBar(
+        title: const Text('Quản lý Booking (Giải quyết)', style: TextStyle(color: Colors.white)),
+        backgroundColor: const Color(0xFF111111),
+        elevation: 0,
+        centerTitle: true,
+      ),
+      body: const Center(
+        child: Text(
+          'Màn hình Quản lý Booking (Giải quyết)',
+          style: TextStyle(color: Colors.white, fontSize: 18),
+        ),
+      ),
+    );
+  }
+}
