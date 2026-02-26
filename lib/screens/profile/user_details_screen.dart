@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../services/auth_service.dart';
 import '../../models/user_model.dart';
+import '../../main.dart';
 
 class UserDetailsScreen extends StatefulWidget {
   const UserDetailsScreen({super.key});
@@ -46,7 +47,12 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
             icon: const Icon(Icons.logout),
             onPressed: () async {
               await _authService.signOut();
-              // Navigation will be handled by AuthWrapper
+              if (context.mounted) {
+                Navigator.of(context).pushAndRemoveUntil(
+                  MaterialPageRoute(builder: (_) => AuthWrapper()),
+                  (route) => false,
+                );
+              }
             },
           ),
         ],
@@ -183,6 +189,12 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
                       ElevatedButton.icon(
                         onPressed: () async {
                           await _authService.signOut();
+                          if (context.mounted) {
+                            Navigator.of(context).pushAndRemoveUntil(
+                              MaterialPageRoute(builder: (_) => AuthWrapper()),
+                              (route) => false,
+                            );
+                          }
                         },
                         icon: const Icon(Icons.logout),
                         label: const Text('Sign Out'),

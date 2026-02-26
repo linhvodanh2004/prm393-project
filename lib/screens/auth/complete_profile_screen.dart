@@ -6,6 +6,7 @@ import '../../models/user_model.dart';
 import '../../widgets/custom_text_field.dart';
 import '../../widgets/app_logo.dart';
 import '../home/home_screen.dart';
+import '../../main.dart';
 
 class CompleteProfileScreen extends StatefulWidget {
   const CompleteProfileScreen({super.key});
@@ -83,9 +84,10 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen>
     if (mounted) {
       setState(() => _isLoading = false);
       if (success) {
-        // Force replace to HomeScreen since AuthWrapper might not react perfectly if only Firestore changed without Auth change
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const HomeScreen()),
+        // Return to AuthWrapper to properly evaluate the stream and future builder
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => AuthWrapper()),
+          (route) => false,
         );
       } else {
         setState(() => _errorMessage = 'Có lỗi xảy ra khi cập nhật hồ sơ. Vui lòng thử lại.');

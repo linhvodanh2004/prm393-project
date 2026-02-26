@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../services/auth_service.dart';
 import '../profile/user_details_screen.dart';
+import '../../main.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -19,6 +20,12 @@ class HomeScreen extends StatelessWidget {
             icon: const Icon(Icons.logout),
             onPressed: () async {
               await authService.signOut();
+              if (context.mounted) {
+                Navigator.of(context).pushAndRemoveUntil(
+                  MaterialPageRoute(builder: (_) => AuthWrapper()),
+                  (route) => false,
+                );
+              }
             },
           ),
         ],
@@ -62,6 +69,12 @@ class HomeScreen extends StatelessWidget {
             OutlinedButton.icon(
               onPressed: () async {
                 await authService.signOut();
+                if (context.mounted) {
+                  Navigator.of(context).pushAndRemoveUntil(
+                    MaterialPageRoute(builder: (_) => AuthWrapper()),
+                    (route) => false,
+                  );
+                }
               },
               icon: const Icon(Icons.logout),
               label: const Text('Logout'),
