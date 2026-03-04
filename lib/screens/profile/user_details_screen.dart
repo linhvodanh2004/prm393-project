@@ -1,6 +1,9 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../services/auth_service.dart';
+import '../../services/storage_service.dart';
 import '../../models/user_model.dart';
 import '../../main.dart';
 import 'edit_profile_screen.dart';
@@ -15,8 +18,12 @@ class UserDetailsScreen extends StatefulWidget {
 
 class _UserDetailsScreenState extends State<UserDetailsScreen> {
   final AuthService _authService = AuthService();
+  final StorageService _storageService = StorageService();
+  final ImagePicker _picker = ImagePicker();
+
   UserModel? _userData;
   bool _isLoading = true;
+  bool _isUploadingAvatar = false;
 
   @override
   void initState() {
@@ -35,6 +42,110 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
     } else {
       setState(() => _isLoading = false);
     }
+  }
+
+  // Handle Avatar Selection
+  Future<void> _pickAndUploadAvatar() async {
+    try {
+      final XFile? image = await _picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 512,
+        maxHeight: 512,
+        imageQuality: 75,
+      );
+
+      if (image == null || _userData == null) return;
+
+      setState(() => _isUploadingAvatar = true);
+
+      // Upload to Cloudinary (will overwrite existing avatar because of public_id strategy)
+      final String? secureUrl = await _storageService.uploadAvatarToCloudinary(
+        _userData!.uid,
+        File(image.path),
+      );
+
+      if (secureUrl != null) {
+        // Update Firestore & Cache
+        await _authService.updateAvatarUrl(_userData!.uid, secureUrl);
+        await _loadUserData(); // Refresh UI
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Lỗi tải ảnh: $e')));
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isUploadingAvatar = false);
+      }
+    }
+  }
+
+  // Handle Avatar Deletion
+  Future<void> _deleteAvatar() async {
+    if (_userData == null || _userData!.photoURL == null) return;
+
+    setState(() => _isUploadingAvatar = true);
+
+    try {
+      // With Cloudinary, we just nullify the Firestore reference
+      // (Advanced cleanup would call a Signed Destroy API on the backend)
+      await _authService.updateAvatarUrl(_userData!.uid, null);
+      await _loadUserData(); // Refresh UI
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Lỗi xóa ảnh: $e')));
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isUploadingAvatar = false);
+      }
+    }
+  }
+
+  void _showAvatarOptions() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF1A1A1A),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => SafeArea(
+        child: Wrap(
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_library, color: Colors.white),
+              title: const Text(
+                'Tải ảnh lên',
+                style: TextStyle(color: Colors.white),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                _pickAndUploadAvatar();
+              },
+            ),
+            if (_userData?.photoURL != null)
+              ListTile(
+                leading: const Icon(
+                  Icons.delete_outline,
+                  color: Colors.redAccent,
+                ),
+                title: const Text(
+                  'Xóa ảnh hiện tại',
+                  style: TextStyle(color: Colors.redAccent),
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  _deleteAvatar();
+                },
+              ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -71,17 +182,56 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  // Profile Picture
-                  if (_userData?.photoURL != null)
-                    CircleAvatar(
-                      radius: 50,
-                      backgroundImage: NetworkImage(_userData!.photoURL!),
-                    )
-                  else
-                    const CircleAvatar(
-                      radius: 50,
-                      child: Icon(Icons.person, size: 50),
-                    ),
+                  // Profile Picture with Edit Badge
+                  Stack(
+                    children: [
+                      _isUploadingAvatar
+                          ? const CircleAvatar(
+                              radius: 50,
+                              backgroundColor: Color(0xFF1A1A1A),
+                              child: CircularProgressIndicator(
+                                color: Color(0xFFD4A853),
+                              ),
+                            )
+                          : CircleAvatar(
+                              radius: 50,
+                              backgroundColor: const Color(0xFF2A2A2A),
+                              backgroundImage: _userData?.photoURL != null
+                                  ? NetworkImage(_userData!.photoURL!)
+                                  : null,
+                              child: _userData?.photoURL == null
+                                  ? const Icon(
+                                      Icons.person,
+                                      size: 50,
+                                      color: Colors.white54,
+                                    )
+                                  : null,
+                            ),
+                      Positioned(
+                        bottom: 0,
+                        right: 0,
+                        child: GestureDetector(
+                          onTap: _isUploadingAvatar ? null : _showAvatarOptions,
+                          child: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFD4A853),
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: const Color(0xFF0D0D0D),
+                                width: 2,
+                              ),
+                            ),
+                            child: const Icon(
+                              Icons.camera_alt,
+                              color: Colors.white,
+                              size: 18,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                   const SizedBox(height: 20),
 
                   // User Info Card

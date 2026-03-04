@@ -239,6 +239,25 @@ class AuthService {
     }
   }
 
+  // Update avatar URL specifically
+  Future<bool> updateAvatarUrl(String uid, String? localPath) async {
+    try {
+      await _firestore.collection('users').doc(uid).set({
+        'photoURL': localPath,
+      }, SetOptions(merge: true));
+
+      // Re-fetch and update local cache after avatar update
+      final updatedUser = await getUserData(uid);
+      if (updatedUser != null) {
+        await saveUserLocally(updatedUser);
+      }
+      return true;
+    } catch (e) {
+      print('Update avatar error: $e');
+      return false;
+    }
+  }
+
   // Sign out
   Future<void> signOut() async {
     await clearLocalUser();

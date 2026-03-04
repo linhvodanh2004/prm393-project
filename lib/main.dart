@@ -8,10 +8,12 @@ import 'screens/home/home_screen.dart';
 
 import 'screens/auth/complete_profile_screen.dart';
 import 'models/user_model.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await dotenv.load(fileName: ".env");
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   runApp(const MyApp());
 }
