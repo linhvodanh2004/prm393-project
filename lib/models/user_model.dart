@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class UserModel {
@@ -86,6 +87,45 @@ class UserModel {
           ? Timestamp.fromDate(createdAt!)
           : FieldValue.serverTimestamp(),
     };
+  }
+
+  // Convert UserModel to a JSON string for Local Caching
+  String toJson() {
+    return jsonEncode({
+      'uid': uid,
+      'email': email,
+      'fullName': fullName,
+      'phoneNumber': phoneNumber,
+      'address': address,
+      'dateOfBirth': dateOfBirth?.toIso8601String(),
+      'displayName': displayName,
+      'photoURL': photoURL,
+      'authProvider': authProvider,
+      'role': role,
+      'createdAt': createdAt?.toIso8601String(),
+    });
+  }
+
+  // Create UserModel from a JSON string (Local Cache)
+  factory UserModel.fromJson(String source) {
+    final data = jsonDecode(source) as Map<String, dynamic>;
+    return UserModel(
+      uid: data['uid'] ?? '',
+      email: data['email'] ?? '',
+      fullName: data['fullName'],
+      phoneNumber: data['phoneNumber'],
+      address: data['address'],
+      dateOfBirth: data['dateOfBirth'] != null
+          ? DateTime.tryParse(data['dateOfBirth'])
+          : null,
+      displayName: data['displayName'],
+      photoURL: data['photoURL'],
+      authProvider: data['authProvider'] ?? 'unknown',
+      role: data['role'] ?? 'USER',
+      createdAt: data['createdAt'] != null
+          ? DateTime.tryParse(data['createdAt'])
+          : null,
+    );
   }
 
   // Get display name (prefer fullName, fallback to displayName, then email)
