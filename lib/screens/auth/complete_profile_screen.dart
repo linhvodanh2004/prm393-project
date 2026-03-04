@@ -2,10 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/services.dart';
 import '../../services/auth_service.dart';
-import '../../models/user_model.dart';
-import '../../widgets/custom_text_field.dart';
 import '../../widgets/app_logo.dart';
-import '../home/home_screen.dart';
 import '../../main.dart';
 
 class CompleteProfileScreen extends StatefulWidget {
@@ -79,7 +76,9 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen>
     };
 
     final success = await _authService.updateUserProfile(
-        currentUser!.uid, dataToUpdate);
+      currentUser!.uid,
+      dataToUpdate,
+    );
 
     if (mounted) {
       setState(() => _isLoading = false);
@@ -90,7 +89,10 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen>
           (route) => false,
         );
       } else {
-        setState(() => _errorMessage = 'Có lỗi xảy ra khi cập nhật hồ sơ. Vui lòng thử lại.');
+        setState(
+          () => _errorMessage =
+              'Có lỗi xảy ra khi cập nhật hồ sơ. Vui lòng thử lại.',
+        );
       }
     }
   }
@@ -155,7 +157,9 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen>
                           hint: '0912345678',
                           icon: Icons.phone_outlined,
                           keyboardType: TextInputType.phone,
-                          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly,
+                          ],
                           validator: (v) => (v == null || v.trim().isEmpty)
                               ? 'Vui lòng nhập số điện thoại'
                               : null,
@@ -189,7 +193,7 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen>
                               setState(() {
                                 _dateOfBirth = date;
                                 _dobController.text =
-                                "${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}";
+                                    "${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}";
                               });
                             }
                           },
@@ -236,21 +240,21 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen>
                             ),
                             child: _isLoading
                                 ? const SizedBox(
-                              width: 24,
-                              height: 24,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Color(0xFF0D0D0D),
-                              ),
-                            )
+                                    width: 24,
+                                    height: 24,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Color(0xFF0D0D0D),
+                                    ),
+                                  )
                                 : const Text(
-                              'Hoàn tất',
-                              style: TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: 0.5,
-                              ),
-                            ),
+                                    'Hoàn tất',
+                                    style: TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w700,
+                                      letterSpacing: 0.5,
+                                    ),
+                                  ),
                           ),
                         ),
                         const SizedBox(height: 32),
@@ -274,7 +278,6 @@ class _FormField extends StatelessWidget {
   final String label;
   final String hint;
   final IconData icon;
-  final bool isPassword;
   final TextInputType? keyboardType;
   final int maxLines;
   final String? Function(String?)? validator;
@@ -285,7 +288,6 @@ class _FormField extends StatelessWidget {
     required this.label,
     required this.hint,
     required this.icon,
-    this.isPassword = false,
     this.keyboardType,
     this.maxLines = 1,
     this.validator,
@@ -299,16 +301,15 @@ class _FormField extends StatelessWidget {
       children: [
         Text(
           label,
-          style: TextStyle(
-            color: Colors.white.withOpacity(0.9),
-            fontSize: 13,
+          style: const TextStyle(
+            color: Colors.white70,
+            fontSize: 14,
             fontWeight: FontWeight.w500,
           ),
         ),
         const SizedBox(height: 8),
         TextFormField(
           controller: controller,
-          obscureText: isPassword,
           keyboardType: keyboardType,
           maxLines: maxLines,
           style: const TextStyle(color: Colors.white, fontSize: 15),
@@ -344,10 +345,7 @@ class _FormField extends StatelessWidget {
             ),
             errorBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),
-              borderSide: const BorderSide(
-                color: Color(0xFFFF6B6B),
-                width: 1,
-              ),
+              borderSide: const BorderSide(color: Color(0xFFFF6B6B), width: 1),
             ),
             focusedErrorBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),
@@ -382,14 +380,20 @@ class _ErrorBanner extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const Icon(Icons.error_outline_rounded,
-              color: Color(0xFFFF6B6B), size: 18),
+          const Icon(
+            Icons.error_outline_rounded,
+            color: Color(0xFFFF6B6B),
+            size: 18,
+          ),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
               message,
               style: const TextStyle(
-                  color: Color(0xFFFF6B6B), fontSize: 13, height: 1.4),
+                color: Color(0xFFFF6B6B),
+                fontSize: 13,
+                height: 1.4,
+              ),
             ),
           ),
         ],

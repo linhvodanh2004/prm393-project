@@ -58,6 +58,12 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
 
       setState(() => _isUploadingAvatar = true);
 
+      // Explicitly delete the old avatar from Cloudinary first if it exists
+      if (_userData!.photoURL != null &&
+          _userData!.photoURL!.startsWith('http')) {
+        await _storageService.deleteAvatarFromCloudinary(_userData!.photoURL!);
+      }
+
       // Upload to Cloudinary (will overwrite existing avatar because of public_id strategy)
       final String? secureUrl = await _storageService.uploadAvatarToCloudinary(
         _userData!.uid,
@@ -89,8 +95,12 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
     setState(() => _isUploadingAvatar = true);
 
     try {
-      // With Cloudinary, we just nullify the Firestore reference
-      // (Advanced cleanup would call a Signed Destroy API on the backend)
+      // Delete the actual image asset from Cloudinary
+      if (_userData!.photoURL!.startsWith('http')) {
+        await _storageService.deleteAvatarFromCloudinary(_userData!.photoURL!);
+      }
+
+      // Nullify the Firestore reference
       await _authService.updateAvatarUrl(_userData!.uid, null);
       await _loadUserData(); // Refresh UI
     } catch (e) {

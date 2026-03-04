@@ -60,4 +60,62 @@ class StorageService {
       return null;
     }
   }
+
+  // Delete an avatar from Cloudinary using its secure URL
+  Future<bool> deleteAvatarFromCloudinary(String secureUrl) async {
+    try {
+      final cloudName = dotenv.env['CLOUDINARY_CLOUD_NAME'];
+      final apiKey = dotenv.env['CLOUDINARY_API_KEY'];
+      final apiSecret = dotenv.env['CLOUDINARY_API_SECRET'];
+
+      if (cloudName == null || apiKey == null || apiSecret == null) {
+        print('Cloudinary credentials missing for deletion.');
+        return false;
+      }
+
+      // Extract the public_id from the URL (e.g. https://res.cloudinary.com/../image/upload/v1234/avatar_xyz.jpg?v=xxx)
+      Uri uriInfo = Uri.parse(secureUrl);
+      String path = uriInfo
+          .path; // e.g. /v1_1/dho7lr4yu/image/upload/v1234/avatar_xyz.jpg
+      String filename = path.split('/').last; // e.g. avatar_xyz.jpg
+      String publicId = filename.split('.').first; // e.g. avatar_xyz
+
+      final timestamp = (DateTime.now().millisecondsSinceEpoch ~/ 1000)
+          .toString();
+
+      // Signature for destroy: public_id -> timestamp
+      final stringToSign = 'public_id=$publicId&timestamp=$timestamp$apiSecret';
+
+      var bytes = utf8.encode(stringToSign);
+      var signature = sha1.convert(bytes).toString();
+
+      var uri = Uri.parse(
+        'https://api.cloudinary.com/v1_1/$cloudName/image/destroy',
+      );
+      var response = await http.post(
+        uri,
+        body: {
+          'api_key': apiKey,
+          'public_id': publicId,
+          'timestamp': timestamp,
+          'signature': signature,
+        },
+      );
+
+      var jsonResponse = jsonDecode(response.body);
+
+      if (response.statusCode == 200 && jsonResponse['result'] == 'ok') {
+        print('Cloudinary: Successfully deleted $publicId');
+        return true;
+      } else {
+        print(
+          'Cloudinary delete error: ${jsonResponse['error']?['message'] ?? jsonResponse}',
+        );
+        return false;
+      }
+    } catch (e) {
+      print('Cloudinary deletion exception: $e');
+      return false;
+    }
+  }
 }
