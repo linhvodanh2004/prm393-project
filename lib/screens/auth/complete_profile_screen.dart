@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/services.dart';
 import '../../services/auth_service.dart';
+import '../../widgets/common/address_picker_sheet.dart';
 import '../../widgets/app_logo.dart';
 import '../../main.dart';
 
@@ -215,11 +216,23 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen>
                         _FormField(
                           controller: _addressController,
                           label: 'Địa chỉ',
-                          hint: '123 Đường ABC, Hà Nội',
+                          hint: 'Nhập địa chỉ của bạn',
                           icon: Icons.location_on_outlined,
                           maxLines: 2,
+                          readOnly: true,
+                          onTap: () {
+                            AddressPickerSheet.show(
+                              context,
+                              initialAddress: _addressController.text,
+                              onAddressSelected: (String newAddress) {
+                                setState(() {
+                                  _addressController.text = newAddress;
+                                });
+                              },
+                            );
+                          },
                           validator: (v) => (v == null || v.trim().isEmpty)
-                              ? 'Vui lòng nhập địa chỉ'
+                              ? 'Vui lòng chọn địa chỉ'
                               : null,
                         ),
                         const SizedBox(height: 36),
@@ -280,6 +293,8 @@ class _FormField extends StatelessWidget {
   final IconData icon;
   final TextInputType? keyboardType;
   final int maxLines;
+  final bool readOnly;
+  final VoidCallback? onTap;
   final String? Function(String?)? validator;
   final List<TextInputFormatter>? inputFormatters;
 
@@ -290,6 +305,8 @@ class _FormField extends StatelessWidget {
     required this.icon,
     this.keyboardType,
     this.maxLines = 1,
+    this.readOnly = false,
+    this.onTap,
     this.validator,
     this.inputFormatters,
   });
@@ -312,6 +329,8 @@ class _FormField extends StatelessWidget {
           controller: controller,
           keyboardType: keyboardType,
           maxLines: maxLines,
+          readOnly: readOnly,
+          onTap: onTap,
           style: const TextStyle(color: Colors.white, fontSize: 15),
           cursorColor: const Color(0xFFD4A853),
           validator: validator,

@@ -1,4 +1,5 @@
 ﻿import 'package:flutter/material.dart';
+import '../../widgets/common/notification_badge_icon.dart';
 
 class ExploreScreen extends StatelessWidget {
   const ExploreScreen({super.key});
@@ -12,6 +13,7 @@ class ExploreScreen extends StatelessWidget {
         backgroundColor: const Color(0xFF111111),
         elevation: 0,
         centerTitle: true,
+        actions: const [NotificationBadgeIcon()],
       ),
       body: const Center(
         child: Text(

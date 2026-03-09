@@ -118,4 +118,50 @@ class StorageService {
       return false;
     }
   }
+
+  // Upload a general image (e.g. for rooms) to Cloudinary and return its secure URL
+  Future<String?> uploadImageToCloudinary(File imageFile) async {
+    try {
+      final cloudName = dotenv.env['CLOUDINARY_CLOUD_NAME'];
+      final apiKey = dotenv.env['CLOUDINARY_API_KEY'];
+      final apiSecret = dotenv.env['CLOUDINARY_API_SECRET'];
+
+      if (cloudName == null || apiKey == null || apiSecret == null) {
+        print('Cloudinary credentials missing in .env');
+        return null;
+      }
+
+      final timestamp = (DateTime.now().millisecondsSinceEpoch ~/ 1000)
+          .toString();
+
+      // Signature for simple upload: timestamp -> apiSecret
+      final stringToSign = 'timestamp=$timestamp$apiSecret';
+
+      var bytes = utf8.encode(stringToSign);
+      var signature = sha1.convert(bytes).toString();
+
+      var uri = Uri.parse(
+        'https://api.cloudinary.com/v1_1/$cloudName/image/upload',
+      );
+      var request = http.MultipartRequest('POST', uri)
+        ..fields['api_key'] = apiKey
+        ..fields['timestamp'] = timestamp
+        ..fields['signature'] = signature
+        ..files.add(await http.MultipartFile.fromPath('file', imageFile.path));
+
+      var response = await request.send();
+      var responseData = await response.stream.bytesToString();
+      var jsonResponse = jsonDecode(responseData);
+
+      if (response.statusCode == 200) {
+        return jsonResponse['secure_url'];
+      } else {
+        print('Cloudinary upload error: ${jsonResponse['error']['message']}');
+        return null;
+      }
+    } catch (e) {
+      print('Cloudinary exception: $e');
+      return null;
+    }
+  }
 }

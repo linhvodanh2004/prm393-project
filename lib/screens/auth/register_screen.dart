@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../services/auth_service.dart';
 import '../../DTOs/register_dto.dart';
+import '../../widgets/common/address_picker_sheet.dart';
 import '../../widgets/custom_text_field.dart';
 import '../../widgets/app_logo.dart';
 
@@ -25,7 +26,7 @@ class _RegisterScreenState extends State<RegisterScreen>
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmPasswordController =
-  TextEditingController();
+      TextEditingController();
 
   int _currentStep = 0; // 0 = thông tin cá nhân, 1 = bảo mật
   DateTime? _dateOfBirth;
@@ -119,8 +120,9 @@ class _RegisterScreenState extends State<RegisterScreen>
     setState(() => _isLoading = false);
 
     if (user == null) {
-      setState(() =>
-      _errorMessage = 'Đăng ký thất bại. Email có thể đã được sử dụng.');
+      setState(
+        () => _errorMessage = 'Đăng ký thất bại. Email có thể đã được sử dụng.',
+      );
     } else {
       if (mounted) Navigator.pop(context);
     }
@@ -203,15 +205,15 @@ class _RegisterScreenState extends State<RegisterScreen>
             ),
             const SizedBox(height: 32),
 
-
             // Full name
             _FormField(
               controller: _fullNameController,
               label: 'Họ và tên',
               hint: 'Nguyễn Văn A',
               icon: Icons.person_outline_rounded,
-              validator: (v) =>
-              (v == null || v.trim().isEmpty) ? 'Vui lòng nhập họ tên' : null,
+              validator: (v) => (v == null || v.trim().isEmpty)
+                  ? 'Vui lòng nhập họ tên'
+                  : null,
             ),
             const SizedBox(height: 16),
 
@@ -223,8 +225,9 @@ class _RegisterScreenState extends State<RegisterScreen>
               icon: Icons.phone_outlined,
               keyboardType: TextInputType.phone,
               inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-              validator: (v) =>
-              (v == null || v.trim().isEmpty) ? 'Vui lòng nhập số điện thoại' : null,
+              validator: (v) => (v == null || v.trim().isEmpty)
+                  ? 'Vui lòng nhập số điện thoại'
+                  : null,
             ),
             const SizedBox(height: 16),
 
@@ -265,7 +268,8 @@ class _RegisterScreenState extends State<RegisterScreen>
                   label: 'Ngày sinh',
                   hint: 'DD/MM/YYYY',
                   icon: Icons.calendar_today_outlined,
-                  validator: (v) => _dateOfBirth == null ? 'Vui lòng chọn ngày sinh' : null,
+                  validator: (v) =>
+                      _dateOfBirth == null ? 'Vui lòng chọn ngày sinh' : null,
                 ),
               ),
             ),
@@ -278,11 +282,23 @@ class _RegisterScreenState extends State<RegisterScreen>
               hint: '123 Đường ABC, Hà Nội',
               icon: Icons.location_on_outlined,
               maxLines: 2,
-              validator: (v) =>
-              (v == null || v.trim().isEmpty) ? 'Vui lòng nhập địa chỉ' : null,
+              readOnly: true,
+              onTap: () {
+                AddressPickerSheet.show(
+                  context,
+                  initialAddress: _addressController.text,
+                  onAddressSelected: (String newAddress) {
+                    setState(() {
+                      _addressController.text = newAddress;
+                    });
+                  },
+                );
+              },
+              validator: (v) => (v == null || v.trim().isEmpty)
+                  ? 'Vui lòng chọn địa chỉ'
+                  : null,
             ),
             const SizedBox(height: 16),
-
 
             const SizedBox(height: 36),
 
@@ -372,20 +388,20 @@ class _RegisterScreenState extends State<RegisterScreen>
 
             _isLoading
                 ? const Center(
-              child: SizedBox(
-                width: 28,
-                height: 28,
-                child: CircularProgressIndicator(
-                  color: Color(0xFFD4A853),
-                  strokeWidth: 2.5,
-                ),
-              ),
-            )
+                    child: SizedBox(
+                      width: 28,
+                      height: 28,
+                      child: CircularProgressIndicator(
+                        color: Color(0xFFD4A853),
+                        strokeWidth: 2.5,
+                      ),
+                    ),
+                  )
                 : _NextButton(
-              label: 'Tạo tài khoản',
-              onPressed: _register,
-              trailingIcon: Icons.check_rounded,
-            ),
+                    label: 'Tạo tài khoản',
+                    onPressed: _register,
+                    trailingIcon: Icons.check_rounded,
+                  ),
 
             const SizedBox(height: 20),
             _LoginCta(),
@@ -458,15 +474,17 @@ class _StepDot extends StatelessWidget {
       height: 10,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: active ? const Color(0xFFD4A853) : Colors.white.withOpacity(0.15),
+        color: active
+            ? const Color(0xFFD4A853)
+            : Colors.white.withOpacity(0.15),
         boxShadow: active
             ? [
-          BoxShadow(
-            color: const Color(0xFFD4A853).withOpacity(0.5),
-            blurRadius: 6,
-            spreadRadius: 1,
-          )
-        ]
+                BoxShadow(
+                  color: const Color(0xFFD4A853).withOpacity(0.5),
+                  blurRadius: 6,
+                  spreadRadius: 1,
+                ),
+              ]
             : null,
       ),
     );
@@ -545,6 +563,8 @@ class _FormField extends StatefulWidget {
   final TextInputType keyboardType;
   final List<TextInputFormatter>? inputFormatters;
   final int maxLines;
+  final bool readOnly;
+  final VoidCallback? onTap;
   final String? Function(String?)? validator;
 
   const _FormField({
@@ -555,6 +575,8 @@ class _FormField extends StatefulWidget {
     this.keyboardType = TextInputType.text,
     this.inputFormatters,
     this.maxLines = 1,
+    this.readOnly = false,
+    this.onTap,
     this.validator,
   });
 
@@ -586,6 +608,8 @@ class _FormFieldState extends State<_FormField> {
           keyboardType: widget.keyboardType,
           inputFormatters: widget.inputFormatters,
           maxLines: widget.maxLines,
+          readOnly: widget.readOnly,
+          onTap: widget.onTap,
           validator: widget.validator,
           style: const TextStyle(
             color: Colors.white,
@@ -596,8 +620,10 @@ class _FormFieldState extends State<_FormField> {
           decoration: InputDecoration(
             labelText: widget.label,
             hintText: widget.hint,
-            hintStyle:
-            TextStyle(color: Colors.white.withOpacity(0.25), fontSize: 14),
+            hintStyle: TextStyle(
+              color: Colors.white.withOpacity(0.25),
+              fontSize: 14,
+            ),
             labelStyle: TextStyle(
               color: _isFocused
                   ? const Color(0xFFD4A853)
@@ -682,8 +708,10 @@ class _PasswordFormFieldState extends State<_PasswordFormField> {
           decoration: InputDecoration(
             labelText: widget.label,
             hintText: widget.hint,
-            hintStyle:
-            TextStyle(color: Colors.white.withOpacity(0.25), fontSize: 14),
+            hintStyle: TextStyle(
+              color: Colors.white.withOpacity(0.25),
+              fontSize: 14,
+            ),
             labelStyle: TextStyle(
               color: _isFocused
                   ? const Color(0xFFD4A853)
@@ -709,8 +737,10 @@ class _PasswordFormFieldState extends State<_PasswordFormField> {
               ),
             ),
             border: InputBorder.none,
-            contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 18,
+            ),
             errorStyle: const TextStyle(
               color: Color(0xFFFF6B6B),
               fontSize: 12,
@@ -814,11 +844,7 @@ class _NextButtonState extends State<_NextButton> {
                 ),
               ),
               const SizedBox(width: 8),
-              Icon(
-                widget.trailingIcon,
-                color: Colors.white,
-                size: 18,
-              ),
+              Icon(widget.trailingIcon, color: Colors.white, size: 18),
             ],
           ),
         ),
@@ -859,10 +885,7 @@ class _CircleIconButtonState extends State<_CircleIconButton> {
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             color: Colors.white.withOpacity(0.06),
-            border: Border.all(
-              color: Colors.white.withOpacity(0.12),
-              width: 1,
-            ),
+            border: Border.all(color: Colors.white.withOpacity(0.12), width: 1),
           ),
           child: Icon(
             widget.icon,
@@ -891,14 +914,20 @@ class _ErrorBanner extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const Icon(Icons.error_outline_rounded,
-              color: Color(0xFFFF6B6B), size: 18),
+          const Icon(
+            Icons.error_outline_rounded,
+            color: Color(0xFFFF6B6B),
+            size: 18,
+          ),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
               message,
               style: const TextStyle(
-                  color: Color(0xFFFF6B6B), fontSize: 13, height: 1.4),
+                color: Color(0xFFFF6B6B),
+                fontSize: 13,
+                height: 1.4,
+              ),
             ),
           ),
         ],
@@ -919,8 +948,10 @@ class _LoginCta extends StatelessWidget {
         child: RichText(
           text: TextSpan(
             text: 'Đã có tài khoản? ',
-            style:
-            TextStyle(color: Colors.white.withOpacity(0.45), fontSize: 13),
+            style: TextStyle(
+              color: Colors.white.withOpacity(0.45),
+              fontSize: 13,
+            ),
             children: const [
               TextSpan(
                 text: 'Đăng nhập',
@@ -938,4 +969,3 @@ class _LoginCta extends StatelessWidget {
     );
   }
 }
-

@@ -4,10 +4,18 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../services/auth_service.dart';
 import '../../services/storage_service.dart';
+import '../../services/property_service.dart';
 import '../../models/user_model.dart';
+import '../../models/property_model.dart';
+import '../../models/host_request_model.dart';
 import '../../main.dart';
+import '../../widgets/profile/profile_avatar.dart';
+import '../../widgets/profile/user_info_card.dart';
+import '../../widgets/profile/host_property_card.dart';
+import '../../services/host_request_service.dart';
 import 'edit_profile_screen.dart';
 import 'change_password_screen.dart';
+import 'become_host_screen.dart';
 
 class UserDetailsScreen extends StatefulWidget {
   const UserDetailsScreen({super.key});
@@ -19,9 +27,13 @@ class UserDetailsScreen extends StatefulWidget {
 class _UserDetailsScreenState extends State<UserDetailsScreen> {
   final AuthService _authService = AuthService();
   final StorageService _storageService = StorageService();
+  final PropertyService _propertyService = PropertyService();
+  final HostRequestService _hostRequestService = HostRequestService();
   final ImagePicker _picker = ImagePicker();
 
   UserModel? _userData;
+  PropertyModel? _propertyData;
+  HostRequestModel? _currentHostRequest;
   bool _isLoading = true;
   bool _isUploadingAvatar = false;
 
@@ -35,8 +47,27 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
       final data = await _authService.getUserData(user.uid);
+
+      PropertyModel? property;
+      HostRequestModel? currentRequest;
+
+      if (data != null) {
+        if (data.role == 'host') {
+          property = await _propertyService.getPropertyByHost(data.uid).first;
+        } else if (data.role == 'user') {
+          final requests = await _hostRequestService
+              .getUserRequests(data.uid)
+              .first;
+          if (requests.isNotEmpty) {
+            currentRequest = requests.first;
+          }
+        }
+      }
+
       setState(() {
         _userData = data;
+        _propertyData = property;
+        _currentHostRequest = currentRequest;
         _isLoading = false;
       });
     } else {
@@ -193,142 +224,30 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   // Profile Picture with Edit Badge
-                  Stack(
-                    children: [
-                      _isUploadingAvatar
-                          ? const CircleAvatar(
-                              radius: 50,
-                              backgroundColor: Color(0xFF1A1A1A),
-                              child: CircularProgressIndicator(
-                                color: Color(0xFFD4A853),
-                              ),
-                            )
-                          : CircleAvatar(
-                              radius: 50,
-                              backgroundColor: const Color(0xFF2A2A2A),
-                              backgroundImage: _userData?.photoURL != null
-                                  ? NetworkImage(_userData!.photoURL!)
-                                  : null,
-                              child: _userData?.photoURL == null
-                                  ? const Icon(
-                                      Icons.person,
-                                      size: 50,
-                                      color: Colors.white54,
-                                    )
-                                  : null,
-                            ),
-                      Positioned(
-                        bottom: 0,
-                        right: 0,
-                        child: GestureDetector(
-                          onTap: _isUploadingAvatar ? null : _showAvatarOptions,
-                          child: Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFD4A853),
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: const Color(0xFF0D0D0D),
-                                width: 2,
-                              ),
-                            ),
-                            child: const Icon(
-                              Icons.camera_alt,
-                              color: Colors.white,
-                              size: 18,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
+                  ProfileAvatar(
+                    photoURL: _userData?.photoURL,
+                    isUploading: _isUploadingAvatar,
+                    onEditTap: _showAvatarOptions,
                   ),
                   const SizedBox(height: 20),
 
                   // User Info Card
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(20.0),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF1A1A1A),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: Colors.white.withOpacity(0.08),
-                        width: 1,
-                      ),
+                  if (_userData != null)
+                    UserInfoCard(
+                      userData: _userData!,
+                      fallbackEmail: user.email ?? 'Chưa cập nhật',
                     ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Thông tin tài khoản',
-                          style: TextStyle(
-                            color: Colors.white.withOpacity(0.9),
-                            fontSize: 18,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        Divider(color: Colors.white.withOpacity(0.1)),
-                        const SizedBox(height: 16),
-
-                        // Email
-                        _buildInfoRow(
-                          Icons.email,
-                          'Email',
-                          _userData?.email ?? user.email ?? 'Chưa cập nhật',
-                        ),
-                        const SizedBox(height: 12),
-
-                        // Auth Provider
-                        _buildInfoRow(
-                          Icons.security,
-                          'Phương thức đăng nhập',
-                          _userData?.authProvider ?? 'Không xác định',
-                        ),
-                        const SizedBox(height: 12),
-
-                        // Full Name (for email/password users)
-                        if (_userData?.fullName != null) ...[
-                          _buildInfoRow(
-                            Icons.person,
-                            'Họ và tên',
-                            _userData!.fullName!,
-                          ),
-                          const SizedBox(height: 12),
-                        ],
-
-                        // Phone Number
-                        if (_userData?.phoneNumber != null) ...[
-                          _buildInfoRow(
-                            Icons.phone,
-                            'Số điện thoại',
-                            _userData!.phoneNumber!,
-                          ),
-                          const SizedBox(height: 12),
-                        ],
-
-                        // Address
-                        if (_userData?.address != null) ...[
-                          _buildInfoRow(
-                            Icons.home,
-                            'Địa chỉ',
-                            _userData!.address!,
-                          ),
-                          const SizedBox(height: 12),
-                        ],
-
-                        // Date of Birth
-                        if (_userData?.dateOfBirth != null) ...[
-                          _buildInfoRow(
-                            Icons.calendar_today,
-                            'Ngày sinh (DD/MM/YYYY)',
-                            "${_userData!.dateOfBirth!.day.toString().padLeft(2, '0')}/${_userData!.dateOfBirth!.month.toString().padLeft(2, '0')}/${_userData!.dateOfBirth!.year}",
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
                   const SizedBox(height: 20),
+
+                  // Host Property Card (If user is host)
+                  if (_userData != null && _userData!.role == 'host') ...[
+                    HostPropertyCard(
+                      property: _propertyData,
+                      hostId: _userData!.uid,
+                      onDataChanged: _loadUserData,
+                    ),
+                    const SizedBox(height: 20),
+                  ],
 
                   // Profile Status Badge
                   if (_userData != null) ...[
@@ -351,6 +270,87 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
                       ),
                     ),
                     const SizedBox(height: 32),
+                  ],
+
+                  // Become a Host Button / Request Status (If user is a normal user)
+                  if (_userData != null &&
+                      _userData!.role.toUpperCase() == 'USER') ...[
+                    if (_currentHostRequest?.status == 'pending')
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(
+                          vertical: 16,
+                          horizontal: 16,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFD4A853).withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: const Color(0xFFD4A853).withOpacity(0.3),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Color(0xFFD4A853),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            const Text(
+                              'Đang chờ duyệt đăng ký đối tác',
+                              style: TextStyle(
+                                color: Color(0xFFD4A853),
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    else
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: () async {
+                            final result = await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => BecomeHostScreen(
+                                  userModel: _userData!,
+                                  existingRequest: _currentHostRequest,
+                                ),
+                              ),
+                            );
+                            if (result == true) {
+                              _loadUserData();
+                            }
+                          },
+                          icon: const Icon(Icons.store, size: 20),
+                          label: Text(
+                            _currentHostRequest?.status == 'rejected'
+                                ? 'Cập nhật đăng ký đối tác'
+                                : 'Đăng ký làm đối tác (Host)',
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF2A2A2A),
+                            foregroundColor: const Color(0xFFD4A853),
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              side: const BorderSide(
+                                color: Color(0xFFD4A853),
+                                width: 1,
+                              ),
+                            ),
+                            elevation: 0,
+                          ),
+                        ),
+                      ),
+                    const SizedBox(height: 16),
                   ],
 
                   // ACTION BUTTONS
@@ -447,43 +447,6 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
                 ],
               ),
             ),
-    );
-  }
-
-  Widget _buildInfoRow(IconData icon, String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, size: 20, color: const Color(0xFFD4A853).withOpacity(0.8)),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.white.withOpacity(0.4),
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  value,
-                  style: const TextStyle(
-                    fontSize: 15,
-                    color: Colors.white,
-                    fontWeight: FontWeight.w400,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
