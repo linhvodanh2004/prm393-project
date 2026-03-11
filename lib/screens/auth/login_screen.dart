@@ -177,8 +177,9 @@ class _LoginScreenState extends State<LoginScreen>
       opacity: _fadeAnimation,
       child: SlideTransition(
         position: _slideAnimation,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const AppLogoLockup(iconSize: 40, fontSize: 18),
             const SizedBox(height: 20),
@@ -254,7 +255,7 @@ class _LoginScreenState extends State<LoginScreen>
               ),
             ),
 
-            const Spacer(),
+            const SizedBox(height: 32),
 
             _isLoading
                 ? const Center(
@@ -285,6 +286,7 @@ class _LoginScreenState extends State<LoginScreen>
             const SizedBox(height: 20),
             _RegisterCta(isLoading: _isLoading),
           ],
+        ),
         ),
       ),
     );
