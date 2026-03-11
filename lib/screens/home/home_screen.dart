@@ -39,6 +39,10 @@ class _HomeScreenState extends State<HomeScreen> {
     final List<BottomNavigationBarItem> navItems = _buildNavItemsForRole(role);
 
     return Scaffold(
+      appBar: AppBar(
+        backgroundColor: const Color.fromARGB(255, 198, 94, 4),
+        title: Text('Chào, ${widget.userModel.name}'),
+      ),
       backgroundColor: const Color(0xFF0D0D0D),
       body: IndexedStack(index: _currentIndex, children: pages),
       bottomNavigationBar: Container(
