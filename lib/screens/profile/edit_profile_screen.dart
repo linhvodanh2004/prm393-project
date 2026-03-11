@@ -2,14 +2,12 @@ import 'package:flutter/material.dart';
 import '../../services/auth_service.dart';
 import '../../models/user_model.dart';
 import '../../widgets/custom_text_field.dart';
+import '../../widgets/common/address_picker_sheet.dart';
 
 class EditProfileScreen extends StatefulWidget {
   final UserModel userModel;
 
-  const EditProfileScreen({
-    super.key,
-    required this.userModel,
-  });
+  const EditProfileScreen({super.key, required this.userModel});
 
   @override
   State<EditProfileScreen> createState() => _EditProfileScreenState();
@@ -17,12 +15,12 @@ class EditProfileScreen extends StatefulWidget {
 
 class _EditProfileScreenState extends State<EditProfileScreen> {
   final AuthService _authService = AuthService();
-  
+
   late TextEditingController _fullNameController;
   late TextEditingController _phoneController;
   late TextEditingController _addressController;
   late TextEditingController _emailController;
-  
+
   DateTime? _selectedDate;
   bool _isLoading = false;
   String? _errorMessage;
@@ -30,8 +28,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   @override
   void initState() {
     super.initState();
-    _fullNameController = TextEditingController(text: widget.userModel.fullName ?? widget.userModel.displayName);
-    _phoneController = TextEditingController(text: widget.userModel.phoneNumber);
+    _fullNameController = TextEditingController(
+      text: widget.userModel.fullName ?? widget.userModel.displayName,
+    );
+    _phoneController = TextEditingController(
+      text: widget.userModel.phoneNumber,
+    );
     _addressController = TextEditingController(text: widget.userModel.address);
     _emailController = TextEditingController(text: widget.userModel.email);
     _selectedDate = widget.userModel.dateOfBirth;
@@ -87,7 +89,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         if (_selectedDate != null) 'dateOfBirth': _selectedDate,
       };
 
-      final success = await _authService.updateUserProfile(widget.userModel.uid, updatedData);
+      final success = await _authService.updateUserProfile(
+        widget.userModel.uid,
+        updatedData,
+      );
 
       if (success) {
         if (mounted) {
@@ -150,7 +155,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.error_outline, color: Colors.red, size: 20),
+                    const Icon(
+                      Icons.error_outline,
+                      color: Colors.red,
+                      size: 20,
+                    ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
@@ -172,7 +181,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               decoration: InputDecoration(
                 labelText: 'Email',
                 labelStyle: TextStyle(color: Colors.white.withOpacity(0.5)),
-                prefixIcon: Icon(Icons.email, color: Colors.white.withOpacity(0.3)),
+                prefixIcon: Icon(
+                  Icons.email,
+                  color: Colors.white.withOpacity(0.3),
+                ),
                 filled: true,
                 fillColor: const Color(0xFF1A1A1A),
                 border: OutlineInputBorder(
@@ -184,7 +196,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             const SizedBox(height: 8),
             Text(
               ' Email không thể thay đổi',
-              style: TextStyle(color: Colors.white.withOpacity(0.3), fontSize: 12),
+              style: TextStyle(
+                color: Colors.white.withOpacity(0.3),
+                fontSize: 12,
+              ),
             ),
             const SizedBox(height: 24),
 
@@ -208,8 +223,20 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             CustomTextField(
               controller: _addressController,
               label: 'Địa chỉ',
-              hint: 'Nhập địa chỉ của bạn',
+              hint: 'Chọn địa chỉ của bạn',
               prefixIcon: Icons.home_outlined,
+              readOnly: true,
+              onTap: () {
+                AddressPickerSheet.show(
+                  context,
+                  initialAddress: _addressController.text,
+                  onAddressSelected: (String newAddress) {
+                    setState(() {
+                      _addressController.text = newAddress;
+                    });
+                  },
+                );
+              },
             ),
             const SizedBox(height: 16),
 
@@ -217,13 +244,14 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             InkWell(
               onTap: () => _selectDate(context),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 16,
+                ),
                 decoration: BoxDecoration(
                   color: const Color(0xFF1A1A1A),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: Colors.white.withOpacity(0.1),
-                  ),
+                  border: Border.all(color: Colors.white.withOpacity(0.1)),
                 ),
                 child: Row(
                   children: [
@@ -263,9 +291,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
             _isLoading
                 ? const Center(
-                    child: CircularProgressIndicator(
-                      color: Color(0xFFD4A853),
-                    ),
+                    child: CircularProgressIndicator(color: Color(0xFFD4A853)),
                   )
                 : SizedBox(
                     width: double.infinity,

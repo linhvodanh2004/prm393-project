@@ -1,4 +1,5 @@
 ﻿import 'package:flutter/material.dart';
+import '../../widgets/common/notification_badge_icon.dart';
 
 import '../../models/room_model.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -9,6 +10,7 @@ class ExploreScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+<<<<<<< HEAD
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance.collection('room').snapshots(),
       builder: (context, snapshot) {
@@ -56,6 +58,23 @@ class ExploreScreen extends StatelessWidget {
           },
         );
       },
+=======
+    return Scaffold(
+      backgroundColor: const Color(0xFF0D0D0D),
+      appBar: AppBar(
+        title: const Text('Khám phá', style: TextStyle(color: Colors.white)),
+        backgroundColor: const Color(0xFF111111),
+        elevation: 0,
+        centerTitle: true,
+        actions: const [NotificationBadgeIcon()],
+      ),
+      body: const Center(
+        child: Text(
+          'Màn hình Khám phá',
+          style: TextStyle(color: Colors.white, fontSize: 18),
+        ),
+      ),
+>>>>>>> 22bb14d3e32a537dcf429c72349cea5ff39c667b
     );
   }
 }

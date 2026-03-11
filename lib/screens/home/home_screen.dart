@@ -6,7 +6,7 @@ import '../profile/user_details_screen.dart';
 import '../user/explore_screen.dart';
 import '../user/favorites_screen.dart';
 import '../user/user_bookings_screen.dart';
-import '../user/messages_screen.dart';
+import '../chat/chat_list_screen.dart';
 
 // Host Screens
 import '../host/host_dashboard_screen.dart';
@@ -92,7 +92,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ExploreScreen(),
           FavoritesScreen(),
           UserBookingsScreen(),
-          MessagesScreen(),
+          ChatListScreen(),
           UserDetailsScreen(),
         ];
     }

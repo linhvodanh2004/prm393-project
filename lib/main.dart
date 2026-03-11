@@ -8,13 +8,30 @@ import 'screens/home/home_screen.dart';
 
 import 'screens/auth/complete_profile_screen.dart';
 import 'models/user_model.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'services/fcm_service.dart';
+
+@pragma('vm:entry-point')
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  // Background message handling logic can go here
+  print("Handling a background message: ${message.messageId}");
+}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  await dotenv.load(fileName: ".env");
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+
+  try {
+    await FCMService().init();
+  } catch (e) {
+    print("FCM Init error: $e");
+  }
+
   runApp(const MyApp());
 }
 
@@ -41,44 +58,77 @@ class AuthWrapper extends StatelessWidget {
   Widget build(BuildContext context) {
     final AuthService authService = AuthService();
 
-    return StreamBuilder<User?>(
-      stream: authService.authStateChanges,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.active) {
-          final User? user = snapshot.data;
-          
-          if (user == null) {
-            return const LoginScreen();
-          }
-
-          // User is authenticated, check their Firestore profile
-          return FutureBuilder<UserModel?>(
-            future: authService.getUserData(user.uid),
-            builder: (context, userSnapshot) {
-              if (userSnapshot.connectionState == ConnectionState.waiting) {
-                return const Scaffold(
-                  backgroundColor: Color(0xFF0D0D0D),
-                  body: Center(
-                    child: CircularProgressIndicator(color: Color(0xFFD4A853)),
-                  ),
-                );
-              }
-
-              final userModel = userSnapshot.data;
-              
-              if (userModel == null || !userModel.hasCompleteProfile) {
-                // Route to incomplete profile page
-                return const CompleteProfileScreen();
-              }
-
-              // Otherwise route to Home
-              return HomeScreen(userModel: userModel);
-            },
+    return FutureBuilder<UserModel?>(
+      future: authService.getLocalUser(),
+      builder: (context, cacheSnapshot) {
+        // While checking local cache, show a splash/loading indicator
+        if (cacheSnapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(
+            backgroundColor: Color(0xFF0D0D0D),
+            body: Center(
+              child: CircularProgressIndicator(color: Color(0xFFD4A853)),
+            ),
           );
         }
-        return const Scaffold(
-          backgroundColor: Color(0xFF0D0D0D),
-          body: Center(child: CircularProgressIndicator(color: Color(0xFFD4A853))),
+
+        // If a valid user is found in the local cache, route instantly to HomeScreen
+        // Background sync will be handled by the Firebase Auth stream elsewhere if needed,
+        // but for instantaneous persistence, we trust the cache.
+        if (cacheSnapshot.hasData && cacheSnapshot.data != null) {
+          final userModel = cacheSnapshot.data!;
+          if (!userModel.hasCompleteProfile) {
+            return const CompleteProfileScreen();
+          }
+          return HomeScreen(userModel: userModel);
+        }
+
+        // Fallback to Firebase Auth Stream if no local cache is found (e.g., first install, or after logout)
+        return StreamBuilder<User?>(
+          stream: authService.authStateChanges,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.active) {
+              final User? user = snapshot.data;
+
+              if (user == null) {
+                return const LoginScreen();
+              }
+
+              // User is authenticated but not cached (rare edge case), fetch from Firestore
+              return FutureBuilder<UserModel?>(
+                future: authService.getUserData(user.uid),
+                builder: (context, userSnapshot) {
+                  if (userSnapshot.connectionState == ConnectionState.waiting) {
+                    return const Scaffold(
+                      backgroundColor: Color(0xFF0D0D0D),
+                      body: Center(
+                        child: CircularProgressIndicator(
+                          color: Color(0xFFD4A853),
+                        ),
+                      ),
+                    );
+                  }
+
+                  final userModel = userSnapshot.data;
+                  if (userModel != null) {
+                    // Heal the cache
+                    authService.saveUserLocally(userModel);
+                  }
+
+                  if (userModel == null || !userModel.hasCompleteProfile) {
+                    return const CompleteProfileScreen();
+                  }
+
+                  return HomeScreen(userModel: userModel);
+                },
+              );
+            }
+            return const Scaffold(
+              backgroundColor: Color(0xFF0D0D0D),
+              body: Center(
+                child: CircularProgressIndicator(color: Color(0xFFD4A853)),
+              ),
+            );
+          },
         );
       },
     );

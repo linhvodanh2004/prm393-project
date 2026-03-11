@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/user_model.dart';
 import '../DTOs/register_dto.dart';
 
@@ -9,8 +10,36 @@ class AuthService {
   final GoogleSignIn _googleSignIn = GoogleSignIn();
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
+  final _localUserKey = 'cached_user_model';
+
   // Stream to listen to auth state changes
   Stream<User?> get authStateChanges => _auth.authStateChanges();
+
+  // --- LOCAL CACHING ---
+  Future<void> saveUserLocally(UserModel user) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_localUserKey, user.toJson());
+  }
+
+  Future<void> clearLocalUser() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_localUserKey);
+  }
+
+  Future<UserModel?> getLocalUser() async {
+    final prefs = await SharedPreferences.getInstance();
+    final userJson = prefs.getString(_localUserKey);
+    if (userJson != null) {
+      try {
+        return UserModel.fromJson(userJson);
+      } catch (e) {
+        print('Error parsing local user: $e');
+        return null;
+      }
+    }
+    return null;
+  }
+  // ----------------------
 
   // Sign in with email and password
   Future<User?> signIn(String email, String password) async {
@@ -19,6 +48,13 @@ class AuthService {
         email: email,
         password: password,
       );
+      if (result.user != null) {
+        // Fetch full user data and cache it locally
+        final userModel = await getUserData(result.user!.uid);
+        if (userModel != null) {
+          await saveUserLocally(userModel);
+        }
+      }
       return result.user;
     } catch (e) {
       print(e.toString());
@@ -39,7 +75,10 @@ class AuthService {
   }
 
   // Change password while signed in
-  Future<String?> changePassword(String currentPassword, String newPassword) async {
+  Future<String?> changePassword(
+    String currentPassword,
+    String newPassword,
+  ) async {
     try {
       User? user = _auth.currentUser;
       if (user == null) return "Không tìm thấy phiên đăng nhập";
@@ -72,14 +111,15 @@ class AuthService {
     try {
       // Trigger the authentication flow
       final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
-      
+
       if (googleUser == null) {
         // The user canceled the sign-in
         return null;
       }
 
       // Obtain the auth details from the request
-      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      final GoogleSignInAuthentication googleAuth =
+          await googleUser.authentication;
 
       // Create a new credential
       final credential = GoogleAuthProvider.credential(
@@ -89,10 +129,13 @@ class AuthService {
 
       // Sign in to Firebase with the Google credential
       UserCredential result = await _auth.signInWithCredential(credential);
-      
+
       // Check if user data exists in Firestore, if not create basic profile
       if (result.user != null) {
-        final userDoc = await _firestore.collection('users').doc(result.user!.uid).get();
+        final userDoc = await _firestore
+            .collection('users')
+            .doc(result.user!.uid)
+            .get();
         if (!userDoc.exists) {
           // Create basic user profile for Google sign-in users
           final userDTO = UserModel(
@@ -103,10 +146,17 @@ class AuthService {
             authProvider: 'google',
             createdAt: DateTime.now(),
           );
-          await _firestore.collection('users').doc(result.user!.uid).set(userDTO.toFirestore());
+          await _firestore
+              .collection('users')
+              .doc(result.user!.uid)
+              .set(userDTO.toFirestore());
+        } else {
+          // User already exists, fetch from Firestore to cache it
+          final userModel = UserModel.fromFirestore(userDoc);
+          await saveUserLocally(userModel);
         }
       }
-      
+
       return result.user;
     } catch (e) {
       print(e.toString());
@@ -134,7 +184,16 @@ class AuthService {
       if (result.user != null) {
         final firestoreData = registerDTO.toFirestore();
         firestoreData['createdAt'] = FieldValue.serverTimestamp();
-        await _firestore.collection('users').doc(result.user!.uid).set(firestoreData);
+        await _firestore
+            .collection('users')
+            .doc(result.user!.uid)
+            .set(firestoreData);
+
+        // Fetch and cache the fresh user model
+        final userModel = await getUserData(result.user!.uid);
+        if (userModel != null) {
+          await saveUserLocally(userModel);
+        }
       }
 
       return result.user;
@@ -147,7 +206,10 @@ class AuthService {
   // Get user data from Firestore as UserModel
   Future<UserModel?> getUserData(String uid) async {
     try {
-      DocumentSnapshot doc = await _firestore.collection('users').doc(uid).get();
+      DocumentSnapshot doc = await _firestore
+          .collection('users')
+          .doc(uid)
+          .get();
       if (doc.exists) {
         return UserModel.fromFirestore(doc);
       }
@@ -161,7 +223,15 @@ class AuthService {
   // Update user profile in Firestore
   Future<bool> updateUserProfile(String uid, Map<String, dynamic> data) async {
     try {
-      await _firestore.collection('users').doc(uid).set(data, SetOptions(merge: true));
+      await _firestore
+          .collection('users')
+          .doc(uid)
+          .set(data, SetOptions(merge: true));
+      // Re-fetch and update local cache after profile update
+      final updatedUser = await getUserData(uid);
+      if (updatedUser != null) {
+        await saveUserLocally(updatedUser);
+      }
       return true;
     } catch (e) {
       print('Update user profile error: ${e.toString()}');
@@ -169,8 +239,28 @@ class AuthService {
     }
   }
 
+  // Update avatar URL specifically
+  Future<bool> updateAvatarUrl(String uid, String? localPath) async {
+    try {
+      await _firestore.collection('users').doc(uid).set({
+        'photoURL': localPath,
+      }, SetOptions(merge: true));
+
+      // Re-fetch and update local cache after avatar update
+      final updatedUser = await getUserData(uid);
+      if (updatedUser != null) {
+        await saveUserLocally(updatedUser);
+      }
+      return true;
+    } catch (e) {
+      print('Update avatar error: $e');
+      return false;
+    }
+  }
+
   // Sign out
   Future<void> signOut() async {
+    await clearLocalUser();
     await _googleSignIn.signOut();
     await _auth.signOut();
   }
