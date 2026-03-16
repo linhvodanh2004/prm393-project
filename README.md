@@ -48,3 +48,23 @@ This project is a comprehensive booking system designed to facilitate room reser
 
 ## Contributing
 (Guidelines for contributing to the project)
+
+## Tech Stack
+
+Frontend
+- Flutter
+
+Backend
+- Firebase Authentication
+- Cloud Firestore
+- Firebase Cloud Functions
+
+Storage
+- Cloudinary (image hosting)
+
+Maps
+- Google Maps API
+
+Payments
+- VNPay (future)
+- COD (current)
