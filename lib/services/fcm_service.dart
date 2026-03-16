@@ -1,7 +1,7 @@
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'local_notifications.dart';
 
 // Exposed as both FcmService (preferred) and FCMService (legacy alias)
 typedef FcmService = FCMService;
@@ -10,8 +10,7 @@ class FCMService {
   final FirebaseMessaging _messaging = FirebaseMessaging.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  final FlutterLocalNotificationsPlugin _localNotificationsPlugin =
-      FlutterLocalNotificationsPlugin();
+  final LocalNotifications _localNotifications = createLocalNotifications();
 
   Future<void> init() async {
     final settings = await _messaging.requestPermission(
@@ -22,12 +21,7 @@ class FCMService {
     );
 
     if (settings.authorizationStatus == AuthorizationStatus.authorized) {
-      const initAndroid =
-          AndroidInitializationSettings('@mipmap/ic_launcher');
-      const initSettings = InitializationSettings(android: initAndroid);
-      await _localNotificationsPlugin.initialize(
-        initializationSettings: initSettings,
-      );
+      await _localNotifications.init();
 
       final token = await _messaging.getToken();
       if (token != null) await _saveTokenToFirestore(token);
@@ -70,21 +64,7 @@ class FCMService {
     final body = notification?.body ?? message.data['body'] as String?;
     if (title == null) return;
 
-    await _localNotificationsPlugin.show(
-      id: message.hashCode,
-      title: title,
-      body: body,
-      notificationDetails: const NotificationDetails(
-        android: AndroidNotificationDetails(
-          'channel_id_main',
-          'Main Channel',
-          channelDescription: 'Main notification channel',
-          importance: Importance.max,
-          priority: Priority.high,
-          icon: '@mipmap/ic_launcher',
-        ),
-      ),
-    );
+    await _localNotifications.show(id: message.hashCode, title: title, body: body);
   }
 
   Future<void> clearToken() async {
