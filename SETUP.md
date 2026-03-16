@@ -29,22 +29,25 @@ cd prm393_project
 flutter pub get
 ```
 
-### 3. Firebase Configuration
+### 3. Firebase Configuration (Checklist)
 
-#### A. Create a Firebase Project
+> Ưu tiên làm đúng từng bước dưới đây để tránh lỗi `Firebase not initialized`, `PERMISSION_DENIED` hoặc FCM không nhận thông báo.
 
-1. Go to [Firebase Console](https://console.firebase.google.com/)
-2. Click "Add project" and follow the setup wizard
-3. Enable Google Analytics (optional)
+#### A. Tạo Firebase Project
 
-#### B. Configure Android App
+1. Vào [Firebase Console](https://console.firebase.google.com/)
+2. **Add project** → đặt tên, chọn region.
+3. Bật/không bật Google Analytics tùy nhu cầu (không bắt buộc).
 
-1. In Firebase Console, click "Add app" → Select Android
-2. Register your app with package name: `com.example.prm393_project`
-3. Download `google-services.json`
-4. Place it in `android/app/` directory
+#### B. Thêm Android App
 
-#### C. Get SHA-1 Fingerprint (Required for Google Sign-In)
+1. Trong Firebase Console → **Project settings → Your apps → Add app → Android**.
+2. **Android package name**: kiểm tra trong `android/app/src/main/AndroidManifest.xml` và `android/app/build.gradle` (thường dạng `com.example.prm393_project` hoặc tên custom của bạn) và khai báo đúng.
+3. Tải `google-services.json`.
+4. Đặt file vào thư mục `android/app/google-services.json`.
+5. Kiểm tra lại `android/build.gradle` và `android/app/build.gradle` đã có dòng apply `com.google.gms.google-services` (Flutter template thường đã cấu hình sẵn).
+
+#### C. Thêm SHA-1 / SHA-256 (bắt buộc cho Google Sign-In)
 
 **Debug SHA-1:**
 ```bash
@@ -61,35 +64,67 @@ gradlew.bat signingReport
 Copy the SHA-1 fingerprint and add it to your Firebase project:
 - Firebase Console → Project Settings → Your Android App → Add fingerprint
 
-#### D. Enable Authentication Methods
+#### D. Bật phương thức đăng nhập (Authentication)
 
-1. In Firebase Console, go to **Authentication** → **Sign-in method**
-2. Enable **Email/Password**
-3. Enable **Google** sign-in provider
-4. Save changes
+1. Firebase Console → **Authentication → Sign-in method**.
+2. Bật:
+   - **Email/Password**.
+   - **Google**.
+3. Lưu lại.
 
-#### E. Create Firestore Database
+#### E. Tạo Firestore Database
 
-1. In Firebase Console, go to **Firestore Database**
-2. Click **Create database**
-3. Choose **Start in test mode** (for development)
-4. Select a location closest to your users
-5. Click **Enable**
+1. Firebase Console → **Firestore Database**.
+2. **Create database**.
+3. Chọn:
+   - Dev: có thể chọn *Start in test mode* (chỉ nên dùng trong giai đoạn phát triển).
+   - Prod: *Production mode* (sau đó tự chỉnh rules).
+4. Chọn region gần người dùng → **Enable**.
 
-#### F. Configure Firestore Security Rules (Optional)
+#### F. Import Firestore Indexes (nên làm)
 
-For development, you can use test mode. For production, update rules:
+Trong repo đã có file `firestore.indexes.json` mô tả các index cần thiết (bookings, notifications, vouchers,…).
+
+**Cách 1 (CLI khuyến nghị)**:
+- Cài Firebase CLI nếu chưa có.
+- Ở thư mục project:
+  ```bash
+  firebase login
+  firebase use prm393-project    # hoặc project id tương ứng trong firebase.json
+  firebase firestore:indexes:apply firestore.indexes.json
+  ```
+
+**Cách 2 (thủ công trên console)**:
+- Firebase Console → **Firestore Database → Indexes → Composite indexes**.
+- Tạo lần lượt:
+  - `bookings`: `(hostId ASC, createdAt DESC)`.
+  - `bookings`: `(userId ASC, createdAt DESC)`.
+  - `bookings`: `(hostId ASC, status ASC, createdAt DESC)`.
+  - `notifications`: `(recipientId ASC, isRead ASC, createdAt DESC)`.
+  - `host_requests`: `(userId ASC, createdAt DESC)`.
+  - Và các index khác theo `firestore.indexes.json` nếu có cảnh báo từ Firestore.
+
+#### G. Firestore Security Rules (dev vs prod)
+
+**Dev (tạm thời):**
 
 ```javascript
 rules_version = '2';
-service cloud.firestore {
+service cloud_firestore {
   match /databases/{database}/documents {
-    match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+    match /{document=**} {
+      allow read, write: if request.auth != null;
     }
   }
 }
 ```
+
+**Prod (gợi ý định hướng):**
+- Chỉ cho phép:
+  - USER đọc/ghi tài liệu của chính mình (`users/{uid}`, `bookings` của user đó).
+  - HOST chỉ đọc/ghi `rooms` của mình, booking liên quan.
+  - ADMIN có quyền rộng hơn (có thể dùng custom claims / kiểm tra role trong field `role`).
+> Quy tắc chi tiết nên được thiết kế sau khi chốt toàn bộ schema ở `README.md`.
 
 ### 4. Firebase Options (Optional)
 
