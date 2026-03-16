@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/user_model.dart';
 import '../DTOs/register_dto.dart';
+import 'fcm_service.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -32,8 +33,8 @@ class AuthService {
     if (userJson != null) {
       try {
         return UserModel.fromJson(userJson);
-      } catch (e) {
-        print('Error parsing local user: $e');
+      } catch (_) {
+        // Corrupted cache — ignore and return null (will re-fetch from Firestore)
         return null;
       }
     }
@@ -49,17 +50,17 @@ class AuthService {
         password: password,
       );
       if (result.user != null) {
-        // Fetch full user data and cache it locally
         final userModel = await getUserData(result.user!.uid);
         if (userModel != null) {
           await saveUserLocally(userModel);
         }
+        await FcmService().saveTokenAfterLogin(result.user!.uid);
       }
       return result.user;
+    } on FirebaseAuthException catch (e) {
+      throw Exception(e.message ?? 'Đăng nhập thất bại');
     } catch (e) {
-      print(e.toString());
-      // In a real app, you'd want to return or throw specific errors
-      return null;
+      throw Exception('Đăng nhập thất bại: $e');
     }
   }
 
@@ -68,8 +69,7 @@ class AuthService {
     try {
       await _auth.sendPasswordResetEmail(email: email);
       return true;
-    } catch (e) {
-      print('Password reset error: ${e.toString()}');
+    } catch (_) {
       return false;
     }
   }
@@ -137,7 +137,6 @@ class AuthService {
             .doc(result.user!.uid)
             .get();
         if (!userDoc.exists) {
-          // Create basic user profile for Google sign-in users
           final userDTO = UserModel(
             uid: result.user!.uid,
             email: result.user!.email ?? '',
@@ -151,27 +150,26 @@ class AuthService {
               .doc(result.user!.uid)
               .set(userDTO.toFirestore());
         } else {
-          // User already exists, fetch from Firestore to cache it
           final userModel = UserModel.fromFirestore(userDoc);
           await saveUserLocally(userModel);
         }
+        await FcmService().saveTokenAfterLogin(result.user!.uid);
       }
 
       return result.user;
+    } on FirebaseAuthException catch (e) {
+      throw Exception(e.message ?? 'Đăng nhập Google thất bại');
     } catch (e) {
-      print(e.toString());
-      return null;
+      throw Exception('Đăng nhập Google thất bại: $e');
     }
   }
 
   // Register with email/password and additional user data using DTO
   Future<User?> registerWithDetails(RegisterDTO registerDTO) async {
     try {
-      // Validate DTO
       final validationError = registerDTO.validate();
       if (validationError != null) {
-        print('Validation error: $validationError');
-        return null;
+        throw Exception(validationError);
       }
 
       // Create auth account
@@ -189,33 +187,29 @@ class AuthService {
             .doc(result.user!.uid)
             .set(firestoreData);
 
-        // Fetch and cache the fresh user model
         final userModel = await getUserData(result.user!.uid);
         if (userModel != null) {
           await saveUserLocally(userModel);
         }
+        await FcmService().saveTokenAfterLogin(result.user!.uid);
       }
 
       return result.user;
+    } on FirebaseAuthException catch (e) {
+      throw Exception(e.message ?? 'Đăng ký thất bại');
     } catch (e) {
-      print(e.toString());
-      return null;
+      throw Exception('Đăng ký thất bại: $e');
     }
   }
 
   // Get user data from Firestore as UserModel
   Future<UserModel?> getUserData(String uid) async {
     try {
-      DocumentSnapshot doc = await _firestore
-          .collection('users')
-          .doc(uid)
-          .get();
-      if (doc.exists) {
-        return UserModel.fromFirestore(doc);
-      }
+      final doc =
+          await _firestore.collection('users').doc(uid).get();
+      if (doc.exists) return UserModel.fromFirestore(doc);
       return null;
-    } catch (e) {
-      print(e.toString());
+    } catch (_) {
       return null;
     }
   }
@@ -227,33 +221,24 @@ class AuthService {
           .collection('users')
           .doc(uid)
           .set(data, SetOptions(merge: true));
-      // Re-fetch and update local cache after profile update
       final updatedUser = await getUserData(uid);
-      if (updatedUser != null) {
-        await saveUserLocally(updatedUser);
-      }
+      if (updatedUser != null) await saveUserLocally(updatedUser);
       return true;
-    } catch (e) {
-      print('Update user profile error: ${e.toString()}');
+    } catch (_) {
       return false;
     }
   }
 
-  // Update avatar URL specifically
-  Future<bool> updateAvatarUrl(String uid, String? localPath) async {
+  // Update avatar URL specifically (pass the remote Cloudinary URL)
+  Future<bool> updateAvatarUrl(String uid, String? photoUrl) async {
     try {
       await _firestore.collection('users').doc(uid).set({
-        'photoURL': localPath,
+        'photoURL': photoUrl,
       }, SetOptions(merge: true));
-
-      // Re-fetch and update local cache after avatar update
       final updatedUser = await getUserData(uid);
-      if (updatedUser != null) {
-        await saveUserLocally(updatedUser);
-      }
+      if (updatedUser != null) await saveUserLocally(updatedUser);
       return true;
-    } catch (e) {
-      print('Update avatar error: $e');
+    } catch (_) {
       return false;
     }
   }

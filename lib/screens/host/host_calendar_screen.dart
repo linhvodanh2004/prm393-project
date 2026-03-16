@@ -1,4 +1,5 @@
-﻿import 'package:flutter/material.dart';
+import 'dart:async';
+import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:intl/intl.dart';
@@ -7,7 +8,6 @@ import '../../models/room_model.dart';
 import '../../models/daily_price_model.dart';
 import '../../services/room_service.dart';
 import '../../widgets/common/notification_badge_icon.dart';
-import '../../services/calendar_service.dart';
 
 class HostCalendarScreen extends StatefulWidget {
   const HostCalendarScreen({super.key});
@@ -19,11 +19,11 @@ class HostCalendarScreen extends StatefulWidget {
 class _HostCalendarScreenState extends State<HostCalendarScreen> {
   final String? _hostId = FirebaseAuth.instance.currentUser?.uid;
   final RoomService _roomService = RoomService();
-  final CalendarService _calendarService = CalendarService();
 
   RoomModel? _selectedRoom;
   List<RoomModel> _rooms = [];
   bool _isLoadingRooms = true;
+  StreamSubscription<List<RoomModel>>? _roomsSub;
 
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
@@ -40,6 +40,7 @@ class _HostCalendarScreenState extends State<HostCalendarScreen> {
 
   @override
   void dispose() {
+    _roomsSub?.cancel();
     _priceController.dispose();
     super.dispose();
   }
@@ -47,9 +48,7 @@ class _HostCalendarScreenState extends State<HostCalendarScreen> {
   Future<void> _loadRooms() async {
     if (_hostId == null) return;
     try {
-      // Get rooms once for the dropdown
-      final roomsStream = _roomService.getRoomsByHost(_hostId!);
-      roomsStream.listen((rooms) {
+      _roomsSub = _roomService.getRoomsByHost(_hostId!).listen((rooms) {
         if (mounted) {
           setState(() {
             _rooms = rooms;
@@ -63,9 +62,10 @@ class _HostCalendarScreenState extends State<HostCalendarScreen> {
     } catch (e) {
       if (mounted) {
         setState(() => _isLoadingRooms = false);
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Lỗi tải phòng: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Lỗi tải phòng: $e'),
+              behavior: SnackBarBehavior.floating),
+        );
       }
     }
   }
@@ -130,7 +130,7 @@ class _HostCalendarScreenState extends State<HostCalendarScreen> {
                     style: TextStyle(color: Colors.white54),
                   ),
                 ),
-                ElevatedButton(
+                  ElevatedButton(
                   onPressed: () async {
                     final price = double.tryParse(_priceController.text.trim());
                     if (price == null) {
@@ -142,12 +142,15 @@ class _HostCalendarScreenState extends State<HostCalendarScreen> {
                       return;
                     }
                     Navigator.pop(ctx);
-                    await _calendarService.saveDailyPrice(
-                      _selectedRoom!.id,
-                      date,
-                      price,
-                      _isEditingBlocked,
+                    // Map dialog state to RoomService's DailyPriceModel
+                    final dailyPrice = DailyPriceModel(
+                      id: '',
+                      roomId: _selectedRoom!.id,
+                      date: date,
+                      price: price,
+                      isBlocked: _isEditingBlocked,
                     );
+                    await _roomService.setDailyPrice(dailyPrice);
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(content: Text('Đã cập nhật lịch phòng')),
@@ -241,7 +244,7 @@ class _HostCalendarScreenState extends State<HostCalendarScreen> {
                   child: StreamBuilder<List<DailyPriceModel>>(
                     stream: _selectedRoom == null
                         ? const Stream.empty()
-                        : _calendarService.getDailyPricesForRoom(
+                        : _roomService.getDailyPrices(
                             _selectedRoom!.id,
                           ),
                     builder: (context, snapshot) {

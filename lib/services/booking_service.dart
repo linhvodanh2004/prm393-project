@@ -2,91 +2,135 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/booking_model.dart';
 import '../services/notification_service.dart';
 
+// Valid status transitions
+const _validTransitions = <String, List<String>>{
+  'pending': ['confirmed', 'rejected', 'cancelled'],
+  'confirmed': ['paid', 'cancelled'],
+  'paid': ['completed'],
+  // Terminal states — no further transitions allowed
+  'completed': [],
+  'rejected': [],
+  'cancelled': [],
+};
+
 class BookingService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  // -- Booking CRUD --
-
-  // Stream a host's bookings
   Stream<List<BookingModel>> getBookingsByHost(String hostId) {
     return _firestore
         .collection('bookings')
         .where('hostId', isEqualTo: hostId)
         .orderBy('createdAt', descending: true)
         .snapshots()
-        .map(
-          (snapshot) => snapshot.docs
-              .map((doc) => BookingModel.fromMap(doc.data(), doc.id))
-              .toList(),
-        );
+        .map((snap) =>
+            snap.docs.map((d) => BookingModel.fromMap(d.data(), d.id)).toList());
   }
 
-  // Stream a user's bookings
   Stream<List<BookingModel>> getBookingsByUser(String userId) {
     return _firestore
         .collection('bookings')
         .where('userId', isEqualTo: userId)
         .orderBy('createdAt', descending: true)
         .snapshots()
-        .map(
-          (snapshot) => snapshot.docs
-              .map((doc) => BookingModel.fromMap(doc.data(), doc.id))
-              .toList(),
-        );
+        .map((snap) =>
+            snap.docs.map((d) => BookingModel.fromMap(d.data(), d.id)).toList());
   }
 
-  // Create a new booking
-  Future<String> createBooking(BookingModel booking) async {
-    final docRef = await _firestore.collection('bookings').add(booking.toMap());
+  // Admin: all bookings, no filter
+  Stream<List<BookingModel>> getAllBookings() {
+    return _firestore
+        .collection('bookings')
+        .orderBy('createdAt', descending: true)
+        .snapshots()
+        .map((snap) =>
+            snap.docs.map((d) => BookingModel.fromMap(d.data(), d.id)).toList());
+  }
 
-    // Notify host
+  Future<String> createBooking(BookingModel booking) async {
+    final docRef =
+        await _firestore.collection('bookings').add(booking.toMap());
     await NotificationService().createNotification(
       recipientId: booking.hostId,
       title: 'Đơn đặt phòng mới!',
-      body: 'Khách ${booking.userName} vừa đặt phòng ${booking.roomTitle}.',
+      body:
+          'Khách ${booking.userName} vừa đặt phòng ${booking.roomTitle}.',
       type: 'booking',
       relatedId: docRef.id,
     );
-
     return docRef.id;
   }
 
-  // Update a booking's status
-  Future<void> updateBookingStatus(String bookingId, String status) async {
+  Future<void> updateBookingStatus(String bookingId, String newStatus) async {
+    final doc =
+        await _firestore.collection('bookings').doc(bookingId).get();
+    if (!doc.exists) throw Exception('Booking không tồn tại');
+
+    final booking = BookingModel.fromMap(doc.data()!, doc.id);
+    final allowed = _validTransitions[booking.status] ?? [];
+    if (!allowed.contains(newStatus)) {
+      throw Exception(
+          'Không thể chuyển trạng thái từ "${booking.status}" sang "$newStatus"');
+    }
+
     await _firestore.collection('bookings').doc(bookingId).update({
-      'status': status,
+      'status': newStatus,
       'updatedAt': FieldValue.serverTimestamp(),
     });
 
-    // Notify user
-    final doc = await _firestore.collection('bookings').doc(bookingId).get();
-    if (doc.exists) {
-      final b = BookingModel.fromMap(doc.data()!, doc.id);
-      String statusVi = status == 'confirmed'
-          ? 'được xác nhận'
-          : status == 'rejected'
-          ? 'bị từ chối'
-          : status == 'paid'
-          ? 'đã thanh toán'
-          : status == 'cancelled'
-          ? 'đã bị hủy'
-          : status;
-
-      await NotificationService().createNotification(
-        recipientId: b.userId,
-        title: 'Cập nhật trạng thái đặt phòng',
-        body: 'Đơn đặt phòng "${b.roomTitle}" của bạn $statusVi.',
-        type: 'booking',
-        relatedId: bookingId,
-      );
-    }
+    final statusLabel = _statusLabel(newStatus);
+    await NotificationService().createNotification(
+      recipientId: booking.userId,
+      title: 'Cập nhật trạng thái đặt phòng',
+      body:
+          'Đơn đặt phòng "${booking.roomTitle}" của bạn $statusLabel.',
+      type: 'booking',
+      relatedId: bookingId,
+    );
   }
 
-  // Add notes/chat messages context to an active booking
+  // Check for conflicting confirmed/paid bookings on same room + overlapping dates.
+  // Returns true if a conflict exists (should block confirmation).
+  Future<bool> hasDateConflict(
+      String roomId, DateTime checkIn, DateTime checkOut,
+      {String? excludeBookingId}) async {
+    final snap = await _firestore
+        .collection('bookings')
+        .where('roomId', isEqualTo: roomId)
+        .where('status', whereIn: ['confirmed', 'paid'])
+        .get();
+
+    for (final doc in snap.docs) {
+      if (excludeBookingId != null && doc.id == excludeBookingId) continue;
+      final b = BookingModel.fromMap(doc.data(), doc.id);
+      // Overlap: not (b.checkOut <= checkIn || b.checkIn >= checkOut)
+      final overlaps =
+          b.checkOut.isAfter(checkIn) && b.checkIn.isBefore(checkOut);
+      if (overlaps) return true;
+    }
+    return false;
+  }
+
   Future<void> updateBookingNote(String bookingId, String note) async {
     await _firestore.collection('bookings').doc(bookingId).update({
       'note': note,
       'updatedAt': FieldValue.serverTimestamp(),
     });
+  }
+
+  String _statusLabel(String status) {
+    switch (status) {
+      case 'confirmed':
+        return 'đã được xác nhận';
+      case 'rejected':
+        return 'bị từ chối';
+      case 'paid':
+        return 'đã thanh toán';
+      case 'cancelled':
+        return 'đã bị hủy';
+      case 'completed':
+        return 'đã hoàn thành';
+      default:
+        return status;
+    }
   }
 }

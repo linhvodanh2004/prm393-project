@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../services/auth_service.dart';
 import '../../models/user_model.dart';
 import '../../widgets/custom_text_field.dart';
@@ -75,7 +76,30 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     }
   }
 
+  String? _validateFullName(String? v) {
+    if (v == null || v.trim().isEmpty) return 'Vui lòng nhập họ và tên';
+    if (v.trim().length < 2) return 'Họ và tên quá ngắn';
+    return null;
+  }
+
+  String? _validatePhone(String? v) {
+    if (v == null || v.trim().isEmpty) return 'Vui lòng nhập số điện thoại';
+    final cleaned = v.trim().replaceAll(RegExp(r'\s+'), '');
+    if (!RegExp(r'^0\d{9}$').hasMatch(cleaned)) {
+      return 'Số điện thoại phải gồm 10 chữ số, bắt đầu bằng 0';
+    }
+    return null;
+  }
+
   Future<void> _handleSave() async {
+    // Validate manually since we don't use a Form widget here
+    final nameError = _validateFullName(_fullNameController.text);
+    final phoneError = _validatePhone(_phoneController.text);
+    if (nameError != null || phoneError != null) {
+      setState(() => _errorMessage = nameError ?? phoneError);
+      return;
+    }
+
     setState(() {
       _isLoading = true;
       _errorMessage = null;
@@ -86,7 +110,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         'fullName': _fullNameController.text.trim(),
         'phoneNumber': _phoneController.text.trim(),
         'address': _addressController.text.trim(),
-        if (_selectedDate != null) 'dateOfBirth': _selectedDate,
+        // Explicitly convert DateTime to Timestamp for Firestore type consistency
+        if (_selectedDate != null)
+          'dateOfBirth': Timestamp.fromDate(_selectedDate!),
       };
 
       final success = await _authService.updateUserProfile(

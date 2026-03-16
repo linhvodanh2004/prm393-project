@@ -1,5 +1,6 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import '../../models/booking_model.dart';
 import '../../services/booking_service.dart';
@@ -17,14 +18,15 @@ class UserBookingsScreen extends StatefulWidget {
 class _UserBookingsScreenState extends State<UserBookingsScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  final BookingService _bookingService = BookingService();
-  final ChatService _chatService = ChatService();
-  final String? _currentUserId = FirebaseAuth.instance.currentUser?.uid;
+  final _bookingService = BookingService();
+  final _chatService = ChatService();
+  String? _currentUserId;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    _currentUserId = FirebaseAuth.instance.currentUser?.uid;
   }
 
   @override
@@ -33,47 +35,95 @@ class _UserBookingsScreenState extends State<UserBookingsScreen>
     super.dispose();
   }
 
-  String _formatCurrency(double price) {
-    return NumberFormat.currency(locale: 'vi_VN', symbol: 'đ').format(price);
-  }
+  String _fmtCurrency(double price) =>
+      NumberFormat.currency(locale: 'vi_VN', symbol: 'đ').format(price);
 
-  String _formatDate(DateTime date) {
-    return DateFormat('dd/MM/yyyy').format(date);
-  }
+  String _fmtDate(DateTime d) => DateFormat('dd/MM/yyyy').format(d);
 
   Future<void> _startChatWithHost(BookingModel b) async {
     try {
-      final userName =
-          FirebaseAuth.instance.currentUser?.displayName ?? 'Khách';
-      final userAvatar = FirebaseAuth.instance.currentUser?.photoURL ?? '';
+      // Fetch host profile for accurate name + avatar
+      final hostDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(b.hostId)
+          .get();
+      final hostData = hostDoc.data();
+      final hostName = hostData?['fullName'] ??
+          hostData?['displayName'] ??
+          'Chủ nhà';
+      final hostAvatar = hostData?['photoURL'] as String? ?? '';
 
-      // Host Name isn't directly in BookingModel right now, so we pass 'Chủ nhà' as fallback
+      final user = FirebaseAuth.instance.currentUser!;
       final roomId = await _chatService.createOrGetRoom(
         b.hostId,
-        'Chủ nhà', // Fallback, would be better to fetch actual Host Name
-        '',
-        userName,
-        userAvatar,
+        hostName,
+        hostAvatar,
+        user.displayName ?? 'Khách',
+        user.photoURL ?? '',
       );
 
       if (mounted) {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => ChatDetailScreen(
+            builder: (_) => ChatDetailScreen(
               roomId: roomId,
               targetId: b.hostId,
-              targetName: 'Chủ nhà',
-              targetAvatar: '',
+              targetName: hostName,
+              targetAvatar: hostAvatar,
             ),
           ),
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Lỗi mở chat: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Lỗi mở chat: $e'),
+              behavior: SnackBarBehavior.floating),
+        );
+      }
+    }
+  }
+
+  Future<void> _cancelBooking(BookingModel b) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: const Color(0xFF1A1A1A),
+        title: const Text('Hủy đặt phòng',
+            style: TextStyle(color: Colors.white)),
+        content: Text(
+            'Bạn có chắc muốn hủy đặt phòng "${b.roomTitle}"?',
+            style: const TextStyle(color: Colors.white70)),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Không')),
+          TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Hủy phòng',
+                  style: TextStyle(color: Colors.red))),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+    try {
+      await _bookingService.updateBookingStatus(b.id, 'cancelled');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('Đã hủy đặt phòng'),
+              behavior: SnackBarBehavior.floating),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Lỗi hủy phòng: $e'),
+              backgroundColor: Colors.red,
+              behavior: SnackBarBehavior.floating),
+        );
       }
     }
   }
@@ -84,7 +134,7 @@ class _UserBookingsScreenState extends State<UserBookingsScreen>
     switch (status) {
       case 'confirmed':
         color = Colors.blue;
-        text = 'Đã xác nhận (Chờ TT)';
+        text = 'Đã xác nhận';
         break;
       case 'paid':
         color = Colors.green;
@@ -95,9 +145,12 @@ class _UserBookingsScreenState extends State<UserBookingsScreen>
         text = 'Hoàn thành';
         break;
       case 'rejected':
-      case 'cancelled':
         color = Colors.red;
-        text = status == 'rejected' ? 'Bị từ chối' : 'Đã hủy';
+        text = 'Bị từ chối';
+        break;
+      case 'cancelled':
+        color = Colors.grey;
+        text = 'Đã hủy';
         break;
       case 'pending':
       default:
@@ -111,130 +164,110 @@ class _UserBookingsScreenState extends State<UserBookingsScreen>
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: color.withOpacity(0.5)),
       ),
-      child: Text(
-        text,
-        style: TextStyle(
-          color: color,
-          fontSize: 12,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
+      child: Text(text,
+          style: TextStyle(
+              color: color, fontSize: 12, fontWeight: FontWeight.bold)),
     );
   }
 
-  Widget _buildInfoRow(IconData icon, String text) {
-    return Row(
-      children: [
-        Icon(icon, size: 16, color: Colors.white54),
-        const SizedBox(width: 8),
-        Text(text, style: const TextStyle(color: Colors.white70, fontSize: 14)),
-      ],
-    );
-  }
-
-  Widget _buildBookingList(List<BookingModel> bookings) {
-    if (bookings.isEmpty) {
-      return Center(
+  Widget _buildBookingCard(BookingModel b, {bool showCancel = false}) {
+    return Card(
+      color: const Color(0xFF1A1A1A),
+      margin: const EdgeInsets.only(bottom: 16),
+      shape:
+          RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(
-              Icons.event_busy,
-              size: 64,
-              color: Colors.white.withOpacity(0.2),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Không có dữ liệu',
-              style: TextStyle(
-                color: Colors.white.withOpacity(0.5),
-                fontSize: 16,
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: bookings.length,
-      itemBuilder: (context, index) {
-        final b = bookings[index];
-        return Card(
-          color: const Color(0xFF1A1A1A),
-          margin: const EdgeInsets.only(bottom: 16),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                // Header (Room Name & Status)
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        b.roomTitle,
-                        style: const TextStyle(
+                Expanded(
+                  child: Text(b.roomTitle,
+                      style: const TextStyle(
                           color: Colors.white,
                           fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    _buildStatusBadge(b.status),
-                  ],
+                          fontWeight: FontWeight.bold),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis),
                 ),
-                const SizedBox(height: 12),
-
-                // Details and Chat Button
+                _buildStatusBadge(b.status),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                const Icon(Icons.calendar_month,
+                    size: 14, color: Colors.white54),
+                const SizedBox(width: 6),
+                Text(
+                    '${_fmtDate(b.checkIn)} → ${_fmtDate(b.checkOut)}',
+                    style: const TextStyle(
+                        color: Colors.white70, fontSize: 13)),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                const Icon(Icons.group, size: 14, color: Colors.white54),
+                const SizedBox(width: 6),
+                Text('${b.guestCount} khách',
+                    style: const TextStyle(
+                        color: Colors.white70, fontSize: 13)),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(_fmtCurrency(b.totalPrice),
+                    style: const TextStyle(
+                        color: Color(0xFFD4A853),
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold)),
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _buildInfoRow(
-                            Icons.calendar_month,
-                            '${_formatDate(b.checkIn)} - ${_formatDate(b.checkOut)}',
-                          ),
-                          const SizedBox(height: 4),
-                          _buildInfoRow(
-                            Icons.group,
-                            'Số khách: ${b.guestCount}',
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            _formatCurrency(b.totalPrice),
-                            style: const TextStyle(
-                              color: Color(0xFFD4A853),
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
+                    if (showCancel)
+                      TextButton(
+                        onPressed: () => _cancelBooking(b),
+                        child: const Text('Hủy',
+                            style: TextStyle(color: Colors.red)),
                       ),
-                    ),
                     IconButton(
                       onPressed: () => _startChatWithHost(b),
                       icon: const Icon(Icons.chat_bubble_outline),
                       color: const Color(0xFFD4A853),
-                      tooltip: 'Nhắn tin cho Chủ nhà',
+                      tooltip: 'Nhắn tin chủ nhà',
                     ),
                   ],
                 ),
               ],
             ),
-          ),
-        );
-      },
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildList(List<BookingModel> bookings, {bool showCancel = false}) {
+    if (bookings.isEmpty) {
+      return const Center(
+        child: Text('Không có dữ liệu',
+            style: TextStyle(color: Colors.white38, fontSize: 16)),
+      );
+    }
+    return RefreshIndicator(
+      color: const Color(0xFFD4A853),
+      backgroundColor: const Color(0xFF1A1A1A),
+      onRefresh: () async => setState(() {}),
+      child: ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: bookings.length,
+        itemBuilder: (_, i) =>
+            _buildBookingCard(bookings[i], showCancel: showCancel),
+      ),
     );
   }
 
@@ -244,21 +277,16 @@ class _UserBookingsScreenState extends State<UserBookingsScreen>
       return const Scaffold(
         backgroundColor: Color(0xFF0D0D0D),
         body: Center(
-          child: Text(
-            'Vui lòng đăng nhập',
-            style: TextStyle(color: Colors.white),
-          ),
-        ),
+            child: Text('Vui lòng đăng nhập',
+                style: TextStyle(color: Colors.white))),
       );
     }
 
     return Scaffold(
       backgroundColor: const Color(0xFF0D0D0D),
       appBar: AppBar(
-        title: const Text(
-          'Booking của tôi',
-          style: TextStyle(color: Colors.white),
-        ),
+        title: const Text('Booking của tôi',
+            style: TextStyle(color: Colors.white)),
         backgroundColor: const Color(0xFF111111),
         elevation: 0,
         centerTitle: true,
@@ -270,7 +298,7 @@ class _UserBookingsScreenState extends State<UserBookingsScreen>
           unselectedLabelColor: Colors.white54,
           tabs: const [
             Tab(text: 'Sắp tới'),
-            Tab(text: 'Đợi duyệt'),
+            Tab(text: 'Chờ duyệt'),
             Tab(text: 'Lịch sử'),
           ],
         ),
@@ -280,39 +308,35 @@ class _UserBookingsScreenState extends State<UserBookingsScreen>
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(
-              child: CircularProgressIndicator(color: Color(0xFFD4A853)),
-            );
+                child: CircularProgressIndicator(
+                    color: Color(0xFFD4A853)));
           }
           if (snapshot.hasError) {
             return Center(
-              child: Text(
-                'Lỗi tải dữ liệu: ${snapshot.error}',
-                style: const TextStyle(color: Colors.red),
-              ),
-            );
+                child: Text('Lỗi: ${snapshot.error}',
+                    style: const TextStyle(color: Colors.red)));
           }
 
-          final bookings = snapshot.data ?? [];
-
-          final upcoming = bookings
-              .where((b) => b.status == 'confirmed' || b.status == 'paid')
+          final all = snapshot.data ?? [];
+          final upcoming = all
+              .where((b) =>
+                  b.status == 'confirmed' || b.status == 'paid')
               .toList();
-          final pending = bookings.where((b) => b.status == 'pending').toList();
-          final history = bookings
-              .where(
-                (b) =>
-                    b.status == 'completed' ||
-                    b.status == 'rejected' ||
-                    b.status == 'cancelled',
-              )
+          final pending =
+              all.where((b) => b.status == 'pending').toList();
+          final history = all
+              .where((b) =>
+                  b.status == 'completed' ||
+                  b.status == 'rejected' ||
+                  b.status == 'cancelled')
               .toList();
 
           return TabBarView(
             controller: _tabController,
             children: [
-              _buildBookingList(upcoming),
-              _buildBookingList(pending),
-              _buildBookingList(history),
+              _buildList(upcoming),
+              _buildList(pending, showCancel: true),
+              _buildList(history),
             ],
           );
         },

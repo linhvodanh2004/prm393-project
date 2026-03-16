@@ -23,22 +23,39 @@ class ChatDetailScreen extends StatefulWidget {
 }
 
 class _ChatDetailScreenState extends State<ChatDetailScreen> {
-  final ChatService _chatService = ChatService();
-  final String _currentId = FirebaseAuth.instance.currentUser?.uid ?? '';
+  final _chatService = ChatService();
+  late final String _currentId;
   final TextEditingController _msgController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    // Read uid in initState to avoid race condition at field-declaration time
+    _currentId = FirebaseAuth.instance.currentUser?.uid ?? '';
+    // Mark room as read when screen opens (covers deep-link navigation)
+    _chatService.markRoomAsRead(widget.roomId);
+  }
+
+  @override
+  void dispose() {
+    _msgController.dispose();
+    super.dispose();
+  }
 
   Future<void> _sendMessage() async {
     final text = _msgController.text.trim();
     if (text.isEmpty) return;
 
-    _msgController.clear();
     try {
       await _chatService.sendMessage(widget.roomId, widget.targetId, text);
+      // Only clear after successful send so user can retry on failure
+      _msgController.clear();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Lỗi gửi tin nhắn: $e'),
+              behavior: SnackBarBehavior.floating),
+        );
       }
     }
   }

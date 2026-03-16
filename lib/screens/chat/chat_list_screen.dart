@@ -12,8 +12,15 @@ class ChatListScreen extends StatefulWidget {
 }
 
 class _ChatListScreenState extends State<ChatListScreen> {
-  final ChatService _chatService = ChatService();
-  final String _currentId = FirebaseAuth.instance.currentUser?.uid ?? '';
+  final _chatService = ChatService();
+  late final String _currentId;
+
+  @override
+  void initState() {
+    super.initState();
+    // Read uid in initState to avoid race condition at field-declaration time
+    _currentId = FirebaseAuth.instance.currentUser?.uid ?? '';
+  }
 
   String _getOtherUserId(ChatRoomModel room) {
     return room.participants.firstWhere(

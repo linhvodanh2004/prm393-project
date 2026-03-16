@@ -20,6 +20,9 @@ import '../admin/admin_rooms_screen.dart';
 import '../admin/admin_bookings_screen.dart';
 import '../admin/admin_payments_screen.dart';
 
+// Voucher Screens (shared)
+import '../host/manage_vouchers_screen.dart';
+
 class HomeScreen extends StatefulWidget {
   final UserModel userModel;
 
@@ -27,6 +30,27 @@ class HomeScreen extends StatefulWidget {
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
+}
+
+// Wraps a tab child so it is only built when first shown, then kept alive.
+class _LazyTab extends StatefulWidget {
+  final Widget child;
+  const _LazyTab({required this.child});
+
+  @override
+  State<_LazyTab> createState() => _LazyTabState();
+}
+
+class _LazyTabState extends State<_LazyTab>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    return widget.child;
+  }
 }
 
 class _HomeScreenState extends State<HomeScreen> {
@@ -44,7 +68,10 @@ class _HomeScreenState extends State<HomeScreen> {
         title: Text('Chào, ${widget.userModel.name}'),
       ),
       backgroundColor: const Color(0xFF0D0D0D),
-      body: IndexedStack(index: _currentIndex, children: pages),
+      body: IndexedStack(
+        index: _currentIndex,
+        children: pages.map((p) => _LazyTab(child: p)).toList(),
+      ),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
           border: Border(
@@ -76,6 +103,7 @@ class _HomeScreenState extends State<HomeScreen> {
           AdminRoomsScreen(),
           AdminBookingsScreen(),
           AdminPaymentsScreen(),
+          ManageVouchersScreen(role: 'ADMIN'),
           UserDetailsScreen(),
         ];
       case 'HOST':
@@ -84,6 +112,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ManageRoomsScreen(),
           HostBookingsScreen(),
           HostCalendarScreen(),
+          ManageVouchersScreen(role: 'HOST'),
           UserDetailsScreen(),
         ];
       case 'USER':
@@ -123,6 +152,11 @@ class _HomeScreenState extends State<HomeScreen> {
             label: 'Thanh toán',
           ),
           BottomNavigationBarItem(
+            icon: Icon(Icons.local_offer_outlined),
+            activeIcon: Icon(Icons.local_offer_rounded),
+            label: 'Voucher',
+          ),
+          BottomNavigationBarItem(
             icon: Icon(Icons.person_outline),
             activeIcon: Icon(Icons.person_rounded),
             label: 'Hồ sơ',
@@ -150,6 +184,11 @@ class _HomeScreenState extends State<HomeScreen> {
             icon: Icon(Icons.calendar_month_outlined),
             activeIcon: Icon(Icons.calendar_month_rounded),
             label: 'Lịch',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.local_offer_outlined),
+            activeIcon: Icon(Icons.local_offer_rounded),
+            label: 'Voucher',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.person_outline),

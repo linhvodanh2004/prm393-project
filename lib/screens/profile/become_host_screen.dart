@@ -124,6 +124,33 @@ class _BecomeHostScreenState extends State<BecomeHostScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              if (widget.existingRequest?.status == 'pending') ...[
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.orange.withOpacity(0.4)),
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.hourglass_top, color: Colors.orange),
+                      SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'Yêu cầu của bạn đang chờ Admin xét duyệt. Bạn không thể chỉnh sửa lúc này.',
+                          style: TextStyle(color: Colors.orange),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 32),
+                const Center(
+                  child: Text('Vui lòng chờ phê duyệt',
+                      style: TextStyle(color: Colors.white54)),
+                ),
+              ] else ...[
               if (widget.existingRequest?.status == 'rejected') ...[
                 Container(
                   padding: const EdgeInsets.all(16),
@@ -201,9 +228,16 @@ class _BecomeHostScreenState extends State<BecomeHostScreen> {
                     borderSide: BorderSide.none,
                   ),
                 ),
-                validator: (value) => value == null || value.length < 9
-                    ? 'CCCD không hợp lệ'
-                    : null,
+                validator: (v) {
+                  if (v == null || v.trim().isEmpty) return 'Vui lòng nhập CCCD/CMND';
+                  final cleaned = v.trim();
+                  // Valid Vietnamese ID: 9 digits (CMND) or 12 digits (CCCD), numeric only
+                  if (!RegExp(r'^\d{9}$').hasMatch(cleaned) &&
+                      !RegExp(r'^\d{12}$').hasMatch(cleaned)) {
+                    return 'CCCD phải gồm 12 chữ số, CMND phải gồm 9 chữ số';
+                  }
+                  return null;
+                },
               ),
               const SizedBox(height: 32),
 
@@ -236,8 +270,14 @@ class _BecomeHostScreenState extends State<BecomeHostScreen> {
                     borderSide: BorderSide.none,
                   ),
                 ),
-                validator: (value) =>
-                    value == null || value.isEmpty ? 'Vui lòng nhập SĐT' : null,
+                validator: (v) {
+                  if (v == null || v.trim().isEmpty) return 'Vui lòng nhập SĐT';
+                  final cleaned = v.trim().replaceAll(RegExp(r'\s+'), '');
+                  if (!RegExp(r'^0\d{9}$').hasMatch(cleaned)) {
+                    return 'SĐT phải gồm 10 chữ số, bắt đầu bằng 0';
+                  }
+                  return null;
+                },
               ),
               const SizedBox(height: 16),
 
@@ -313,6 +353,7 @@ class _BecomeHostScreenState extends State<BecomeHostScreen> {
                         ),
                 ),
               ),
+              ] // close 'else' block for non-pending state
             ],
           ),
         ),

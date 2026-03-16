@@ -1,5 +1,6 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import '../../models/room_model.dart';
 import '../../services/room_service.dart';
@@ -39,6 +40,34 @@ class _ManageRoomsScreenState extends State<ManageRoomsScreen> {
   }
 
   Future<void> _deleteRoom(RoomModel room) async {
+    // Guard: check for active bookings before allowing delete
+    final activeBookings = await FirebaseFirestore.instance
+        .collection('bookings')
+        .where('roomId', isEqualTo: room.id)
+        .where('status', whereIn: ['pending', 'confirmed', 'paid'])
+        .get();
+
+    if (activeBookings.docs.isNotEmpty && mounted) {
+      showDialog(
+        context: context,
+        builder: (_) => AlertDialog(
+          backgroundColor: const Color(0xFF1A1A1A),
+          title: const Text('Không thể xóa',
+              style: TextStyle(color: Colors.white)),
+          content: Text(
+              'Phòng "${room.title}" còn ${activeBookings.docs.length} booking đang hoạt động. '
+              'Vui lòng hoàn thành hoặc hủy booking trước khi xóa.',
+              style: const TextStyle(color: Colors.white70)),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('OK')),
+          ],
+        ),
+      );
+      return;
+    }
+
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -68,15 +97,20 @@ class _ManageRoomsScreenState extends State<ManageRoomsScreen> {
       try {
         await _roomService.deleteRoom(room.id);
         if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(const SnackBar(content: Text('Đã xóa phòng')));
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+                content: Text('Đã xóa phòng'),
+                behavior: SnackBarBehavior.floating),
+          );
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text('Lỗi: $e')));
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+                content: Text('Lỗi: $e'),
+                backgroundColor: Colors.red,
+                behavior: SnackBarBehavior.floating),
+          );
         }
       }
     }
@@ -227,7 +261,7 @@ class _ManageRoomsScreenState extends State<ManageRoomsScreen> {
                                   _buildStatusBadge(room.status),
                                   const SizedBox(width: 8),
                                   Text(
-                                    'Type: ${room.type}',
+                                    'Trạng thái: ${room.status}',
                                     style: TextStyle(
                                       color: Colors.white.withOpacity(0.6),
                                       fontSize: 12,

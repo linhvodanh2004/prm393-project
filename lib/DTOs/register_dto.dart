@@ -22,7 +22,8 @@ class RegisterDTO {
     if (email.trim().isEmpty) {
       return 'Email is required';
     }
-    if (!email.contains('@')) {
+    if (!RegExp(r'^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$')
+        .hasMatch(email.trim())) {
       return 'Invalid email format';
     }
     if (password.isEmpty) {
@@ -50,7 +51,8 @@ class RegisterDTO {
     return null; // No errors
   }
 
-  // Convert to Map for Firestore (excluding password)
+  // Convert to Map for Firestore (excluding password).
+  // Role is always forced to 'USER' — never trust client-supplied role.
   Map<String, dynamic> toFirestore() {
     return {
       'email': email.trim(),
@@ -59,7 +61,7 @@ class RegisterDTO {
       'address': address.trim(),
       'dateOfBirth': dateOfBirth,
       'authProvider': 'email',
-      'role': role,
+      'role': 'USER',
     };
   }
 

@@ -1,6 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../models/notification_model.dart';
 import '../../services/notification_service.dart';
+import '../../models/user_model.dart';
+import '../user/user_bookings_screen.dart';
+import '../host/host_bookings_screen.dart';
+import '../profile/become_host_screen.dart';
+import '../chat/chat_detail_screen.dart';
 import 'package:intl/intl.dart';
 
 class NotificationScreen extends StatefulWidget {
@@ -12,6 +18,69 @@ class NotificationScreen extends StatefulWidget {
 
 class _NotificationScreenState extends State<NotificationScreen> {
   final NotificationService _notificationService = NotificationService();
+
+  void _handleNotificationTap(NotificationModel notif) {
+    if (!notif.isRead) {
+      _notificationService.markAsRead(notif.id);
+    }
+
+    final role = _currentRole();
+
+    switch (notif.type) {
+      case 'booking':
+        if (role == 'HOST' || role == 'ADMIN') {
+          Navigator.push(context,
+              MaterialPageRoute(builder: (_) => const HostBookingsScreen()));
+        } else {
+          Navigator.push(context,
+              MaterialPageRoute(builder: (_) => const UserBookingsScreen()));
+        }
+        break;
+
+      case 'host_request':
+        if (role == 'USER') {
+          Navigator.push(context,
+              MaterialPageRoute(
+                  builder: (_) => BecomeHostScreen(
+                        userModel: UserModel(
+                          uid: FirebaseAuth.instance.currentUser?.uid ?? '',
+                          email:
+                              FirebaseAuth.instance.currentUser?.email ?? '',
+                          authProvider: 'email',
+                        ),
+                      )));
+        }
+        break;
+
+      case 'chat':
+        if (notif.relatedId != null && notif.relatedId!.isNotEmpty) {
+          final roomId = notif.relatedId!;
+          // roomId = "uidA_uidB"; derive the other participant
+          final currentUid =
+              FirebaseAuth.instance.currentUser?.uid ?? '';
+          final parts = roomId.split('_');
+          final targetId =
+              parts.firstWhere((p) => p != currentUid, orElse: () => '');
+          Navigator.push(
+              context,
+              MaterialPageRoute(
+                  builder: (_) => ChatDetailScreen(
+                        roomId: roomId,
+                        targetId: targetId,
+                        targetName: 'Người dùng',
+                      )));
+        }
+        break;
+
+      default:
+        break;
+    }
+  }
+
+  String _currentRole() {
+    // Role is stored locally; will be enhanced once UserModel is passed down
+    return 'USER';
+  }
 
   String _formatDate(DateTime date) {
     return DateFormat('dd/MM HH:mm').format(date);
@@ -161,12 +230,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
                     ),
                   ],
                 ),
-                onTap: () {
-                  if (!notif.isRead) {
-                    _notificationService.markAsRead(notif.id);
-                  }
-                  // Further routing based on type could be added here
-                },
+                onTap: () => _handleNotificationTap(notif),
               );
             },
           );

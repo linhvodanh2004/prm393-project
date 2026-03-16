@@ -13,6 +13,8 @@ class UserModel {
   final String authProvider;
   final String role;
   final DateTime? createdAt;
+  final bool isActive;
+  final List<String> favorites;
 
   UserModel({
     required this.uid,
@@ -26,6 +28,8 @@ class UserModel {
     required this.authProvider,
     this.role = 'USER',
     this.createdAt,
+    this.isActive = true,
+    this.favorites = const [],
   });
 
   // Factory constructor to create UserModel from Firestore document
@@ -47,6 +51,8 @@ class UserModel {
       createdAt: data['createdAt'] != null
           ? (data['createdAt'] as Timestamp).toDate()
           : null,
+      isActive: data['isActive'] ?? true,
+      favorites: List<String>.from(data['favorites'] ?? []),
     );
   }
 
@@ -68,6 +74,8 @@ class UserModel {
       createdAt: data['createdAt'] != null
           ? (data['createdAt'] as Timestamp).toDate()
           : null,
+      isActive: data['isActive'] ?? true,
+      favorites: List<String>.from(data['favorites'] ?? []),
     );
   }
 
@@ -83,6 +91,8 @@ class UserModel {
       if (photoURL != null) 'photoURL': photoURL,
       'authProvider': authProvider,
       'role': role,
+      'isActive': isActive,
+      'favorites': favorites,
       'createdAt': createdAt != null
           ? Timestamp.fromDate(createdAt!)
           : FieldValue.serverTimestamp(),
@@ -102,6 +112,8 @@ class UserModel {
       'photoURL': photoURL,
       'authProvider': authProvider,
       'role': role,
+      'isActive': isActive,
+      'favorites': favorites,
       'createdAt': createdAt?.toIso8601String(),
     });
   }
@@ -122,6 +134,8 @@ class UserModel {
       photoURL: data['photoURL'],
       authProvider: data['authProvider'] ?? 'unknown',
       role: data['role'] ?? 'USER',
+      isActive: data['isActive'] ?? true,
+      favorites: List<String>.from(data['favorites'] ?? []),
       createdAt: data['createdAt'] != null
           ? DateTime.tryParse(data['createdAt'])
           : null,

@@ -13,6 +13,29 @@
 - **Firebase project id**: `prm393-project` (see `firebase.json`)
 - **OpenAPI spec (3.1)**: `openapi.json` (Vietnam provinces API; used for location/divisions)
 
+## Project Structure
+
+models
+- Firestore data models
+
+dtos
+- API / request response objects
+
+services
+- Firebase interaction
+- Cloudinary upload
+- booking logic
+
+screens
+- UI pages
+
+widgets
+- reusable UI components
+
+utils
+- helpers
+- constants
+
 ## Table of Contents
 - [Quickstart](#quickstart)
 - [Tech Stack](#tech-stack)
