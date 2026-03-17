@@ -388,7 +388,7 @@ class _HostPublicProfileScreenState extends State<HostPublicProfileScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFF0D0D0D),
       appBar: AppBar(
-        title: const Text('Thông tin chủ nhà',
+        title: const Text('Thông tin đối tác',
             style: TextStyle(color: Colors.white)),
         backgroundColor: const Color(0xFF111111),
         elevation: 0,
@@ -407,7 +407,7 @@ class _HostPublicProfileScreenState extends State<HostPublicProfileScreen> {
           if (host == null) {
             return const Center(
               child: Text(
-                'Không tìm thấy thông tin chủ nhà',
+                'Không tìm thấy thông tin đối tác',
                 style: TextStyle(color: Colors.white54),
               ),
             );
@@ -604,7 +604,7 @@ class _HostPublicProfileScreenState extends State<HostPublicProfileScreen> {
                 child: Align(
                   alignment: Alignment.centerLeft,
                   child: Text(
-                    'Phòng khác của chủ nhà',
+                    'Phòng khác của đối tác',
                     style: TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
@@ -640,7 +640,7 @@ class _HostPublicProfileScreenState extends State<HostPublicProfileScreen> {
                     if (rooms.isEmpty) {
                       return const Center(
                         child: Text(
-                          'Chủ nhà chưa có phòng khả dụng',
+                          'Đối tác chưa có phòng khả dụng',
                           style: TextStyle(color: Colors.white38),
                         ),
                       );

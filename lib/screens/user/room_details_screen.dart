@@ -273,7 +273,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
       }
 
       if (mounted) {
-        _showSnack('Đặt phòng thành công! Chờ xác nhận từ chủ nhà.',
+        _showSnack('Đặt phòng thành công! Chờ xác nhận từ đối tác.',
             color: Colors.green);
         Navigator.pop(context);
       }

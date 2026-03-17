@@ -54,6 +54,27 @@ class RoomService {
         );
   }
 
+  // Fetch daily price overrides in a date range (inclusive by day).
+  Future<List<DailyPriceModel>> getDailyPricesInRange(
+    String roomId,
+    DateTime from,
+    DateTime to,
+  ) async {
+    final start = DateTime(from.year, from.month, from.day);
+    final end = DateTime(to.year, to.month, to.day, 23, 59, 59);
+    final snap = await _firestore
+        .collection('rooms')
+        .doc(roomId)
+        .collection('daily_prices')
+        .where('date', isGreaterThanOrEqualTo: Timestamp.fromDate(start))
+        .where('date', isLessThanOrEqualTo: Timestamp.fromDate(end))
+        .get();
+
+    return snap.docs
+        .map((doc) => DailyPriceModel.fromMap(doc.data(), doc.id))
+        .toList();
+  }
+
   // Set or update a specific day's price/block status
   Future<void> setDailyPrice(DailyPriceModel dailyPrice) async {
     final dateKey = DateFormat('yyyy-MM-dd').format(dailyPrice.date);

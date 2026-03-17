@@ -10,38 +10,40 @@ class AdminRoomsScreen extends StatefulWidget {
   State<AdminRoomsScreen> createState() => _AdminRoomsScreenState();
 }
 
-class _AdminRoomsScreenState extends State<AdminRoomsScreen>
-    with SingleTickerProviderStateMixin {
-  late TabController _tabController;
+class _AdminRoomsScreenState extends State<AdminRoomsScreen> {
   final _db = FirebaseFirestore.instance;
+  final TextEditingController _searchCtrl = TextEditingController();
+  String _query = '';
+  String _statusFilter = 'ALL';
+
+  final Map<String, String> _hostAddressCache = {};
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
   }
 
   @override
   void dispose() {
-    _tabController.dispose();
+    _searchCtrl.dispose();
     super.dispose();
   }
 
-  Stream<List<RoomModel>> _streamByStatus(String status) {
+  Stream<List<RoomModel>> _streamAll() {
     return _db
         .collection('rooms')
-        .where('status', isEqualTo: status)
         .snapshots()
         .map((s) =>
             s.docs.map((d) => RoomModel.fromMap(d.data(), d.id)).toList());
   }
 
-  Future<void> _updateStatus(String roomId, String status, {String? reason}) async {
+  Future<void> _updateStatus(String roomId, String status,
+      {String? reason}) async {
     try {
       await _db.collection('rooms').doc(roomId).update({
         'status': status,
         'updatedAt': FieldValue.serverTimestamp(),
-        if (reason != null) 'adminNote': reason,
+        if (reason?.trim().isNotEmpty == true) 'adminNote': reason!.trim(),
       });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -60,6 +62,29 @@ class _AdminRoomsScreenState extends State<AdminRoomsScreen>
         );
       }
     }
+  }
+
+  Future<void> _prefetchHostAddress(String hostId) async {
+    if (_hostAddressCache.containsKey(hostId)) return;
+    try {
+      final doc = await _db.collection('properties').doc(hostId).get();
+      final address = (doc.data()?['address'] ?? '').toString().trim();
+      _hostAddressCache[hostId] = address;
+      if (mounted) setState(() {});
+    } catch (_) {
+      _hostAddressCache[hostId] = '';
+    }
+  }
+
+  String _addressFor(RoomModel r) => (_hostAddressCache[r.hostId] ?? '').trim();
+
+  bool _matches(RoomModel r) {
+    if (_statusFilter != 'ALL' && r.status != _statusFilter) return false;
+    final q = _query.trim().toLowerCase();
+    if (q.isEmpty) return true;
+    final title = r.title.toLowerCase();
+    final address = _addressFor(r).toLowerCase();
+    return title.contains(q) || address.contains(q);
   }
 
   Future<void> _approveRoom(RoomModel r) async {
@@ -132,91 +157,84 @@ class _AdminRoomsScreenState extends State<AdminRoomsScreen>
     }
   }
 
-  Widget _buildRoomList(Stream<List<RoomModel>> stream,
-      {bool showActions = false}) {
-    return StreamBuilder<List<RoomModel>>(
-      stream: stream,
-      builder: (ctx, snap) {
-        if (snap.connectionState == ConnectionState.waiting) {
-          return const Center(
-              child: CircularProgressIndicator(color: Color(0xFFFFD700)));
-        }
-        if (snap.hasError) {
-          return Center(
-              child: Text('Lỗi: ${snap.error}',
-                  style: const TextStyle(color: Colors.red)));
-        }
-        final rooms = snap.data ?? [];
-        if (rooms.isEmpty) {
-          return const Center(
-              child: Text('Không có phòng',
-                  style: TextStyle(color: Colors.white38)));
-        }
-
-        return ListView.builder(
-          padding: const EdgeInsets.all(16),
-          itemCount: rooms.length,
-          itemBuilder: (_, i) {
-            final r = rooms[i];
-            return Card(
-              color: const Color(0xFF1A1A1A),
-              margin: const EdgeInsets.only(bottom: 14),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14)),
-              child: ListTile(
-                contentPadding: const EdgeInsets.all(12),
-                leading: r.images.isNotEmpty
-                    ? ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: Image.network(r.images.first,
-                            width: 56,
-                            height: 56,
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => const Icon(
-                                Icons.meeting_room,
-                                color: Colors.white24)))
-                    : const Icon(Icons.meeting_room, color: Colors.white24),
-                title: Text(r.title,
-                    style: const TextStyle(
-                        color: Colors.white, fontWeight: FontWeight.bold)),
-                subtitle: Text(
-                    '${FormatUtils.vnd(r.basePrice)} / giờ',
-                    style: const TextStyle(
-                        color: Color(0xFFFFD700), fontSize: 12)),
-                trailing: showActions
-                    ? Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.check_circle_outline,
-                                color: Colors.green),
-                            onPressed: () => _approveRoom(r),
-                            tooltip: 'Duyệt',
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.cancel_outlined,
-                                color: Colors.redAccent),
-                            onPressed: () => _rejectRoom(r),
-                            tooltip: 'Từ chối',
-                          ),
-                        ],
-                      )
-                    : Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: Colors.green.withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Text('Đang hoạt động',
-                            style: TextStyle(
-                                color: Colors.green, fontSize: 11)),
-                      ),
-              ),
-            );
-          },
-        );
-      },
+  Future<void> _showRoomDetail(RoomModel r) async {
+    final address = _addressFor(r);
+    await showDialog<void>(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: const Color(0xFF1A1A1A),
+        title: Text(r.title, style: const TextStyle(color: Colors.white)),
+        content: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (address.isNotEmpty)
+                Row(
+                  children: [
+                    const Icon(Icons.location_on_outlined,
+                        size: 14, color: Colors.white38),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(address,
+                          style: const TextStyle(
+                              color: Colors.white70, fontSize: 12)),
+                    ),
+                  ],
+                ),
+              const SizedBox(height: 8),
+              Text('Giá: ${FormatUtils.vnd(r.basePrice)} / giờ',
+                  style: const TextStyle(
+                      color: Color(0xFFFFD700), fontWeight: FontWeight.w600)),
+              const SizedBox(height: 6),
+              Text('Trạng thái: ${r.status}',
+                  style: const TextStyle(color: Colors.white54)),
+              const SizedBox(height: 10),
+              if (r.description.isNotEmpty)
+                Text(r.description,
+                    style: const TextStyle(color: Colors.white70, height: 1.4)),
+              if (r.amenities.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: r.amenities
+                      .map((a) => Chip(
+                            label: Text(a,
+                                style: const TextStyle(
+                                    fontSize: 11, color: Colors.white70)),
+                            backgroundColor: const Color(0xFF2A2A2A),
+                          ))
+                      .toList(),
+                ),
+              ],
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Đóng', style: TextStyle(color: Colors.white70)),
+          ),
+          if (r.status == 'pending_review') ...[
+            TextButton(
+              onPressed: () async {
+                Navigator.pop(context);
+                await _rejectRoom(r);
+              },
+              child: const Text('Từ chối',
+                  style: TextStyle(color: Colors.redAccent)),
+            ),
+            TextButton(
+              onPressed: () async {
+                Navigator.pop(context);
+                await _approveRoom(r);
+              },
+              child:
+                  const Text('Duyệt', style: TextStyle(color: Color(0xFFFFD700))),
+            ),
+          ],
+        ],
+      ),
     );
   }
 
@@ -230,23 +248,218 @@ class _AdminRoomsScreenState extends State<AdminRoomsScreen>
         backgroundColor: const Color(0xFF111111),
         elevation: 0,
         centerTitle: true,
-        bottom: TabBar(
-          controller: _tabController,
-          indicatorColor: const Color(0xFFFFD700),
-          labelColor: const Color(0xFFFFD700),
-          unselectedLabelColor: Colors.white54,
-          tabs: const [
-            Tab(text: 'Chờ duyệt'),
-            Tab(text: 'Đang hoạt động'),
-          ],
-        ),
       ),
-      body: TabBarView(
-        controller: _tabController,
+      body: Column(
         children: [
-          _buildRoomList(_streamByStatus('pending_review'), showActions: true),
-          _buildRoomList(_streamByStatus('available')),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 12, 12, 6),
+            child: TextField(
+              controller: _searchCtrl,
+              style: const TextStyle(color: Colors.white),
+              decoration: InputDecoration(
+                hintText: 'Tìm theo tiêu đề hoặc địa chỉ...',
+                hintStyle: const TextStyle(color: Colors.white38),
+                prefixIcon:
+                    const Icon(Icons.search, color: Colors.white54),
+                suffixIcon: _query.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear, color: Colors.white54),
+                        onPressed: () {
+                          _searchCtrl.clear();
+                          setState(() => _query = '');
+                        },
+                      )
+                    : null,
+                filled: true,
+                fillColor: const Color(0xFF1A1A1A),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+              onChanged: (v) => setState(() => _query = v),
+            ),
+          ),
+          SizedBox(
+            height: 44,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              children: [
+                _statusChip('ALL', 'Tất cả'),
+                _statusChip('pending_review', 'Chờ duyệt'),
+                _statusChip('available', 'Khả dụng'),
+                _statusChip('maintenance', 'Bảo trì'),
+                _statusChip('unavailable', 'Không khả dụng'),
+              ],
+            ),
+          ),
+          Expanded(
+            child: StreamBuilder<List<RoomModel>>(
+              stream: _streamAll(),
+              builder: (ctx, snap) {
+                if (!snap.hasData) {
+                  return const Center(
+                      child: CircularProgressIndicator(
+                          color: Color(0xFFFFD700)));
+                }
+                if (snap.hasError) {
+                  return Center(
+                      child: Text('Lỗi: ${snap.error}',
+                          style:
+                              const TextStyle(color: Colors.redAccent)));
+                }
+
+                final rooms = snap.data ?? [];
+                for (final r in rooms) {
+                  _prefetchHostAddress(r.hostId);
+                }
+                final filtered = rooms.where(_matches).toList()
+                  ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+                if (filtered.isEmpty) {
+                  return const Center(
+                    child: Text('Không có phòng phù hợp',
+                        style: TextStyle(color: Colors.white38)),
+                  );
+                }
+
+                return ListView.builder(
+                  padding: const EdgeInsets.all(12),
+                  itemCount: filtered.length,
+                  itemBuilder: (_, i) {
+                    final r = filtered[i];
+                    final addr = _addressFor(r);
+                    return Card(
+                      color: const Color(0xFF1A1A1A),
+                      margin: const EdgeInsets.only(bottom: 12),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14)),
+                      child: ListTile(
+                        onTap: () => _showRoomDetail(r),
+                        contentPadding: const EdgeInsets.all(12),
+                        leading: r.images.isNotEmpty
+                            ? ClipRRect(
+                                borderRadius: BorderRadius.circular(10),
+                                child: Image.network(
+                                  r.images.first,
+                                  width: 56,
+                                  height: 56,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (context, error, stackTrace) =>
+                                      const Icon(Icons.meeting_room,
+                                          color: Colors.white24),
+                                ),
+                              )
+                            : const Icon(Icons.meeting_room,
+                                color: Colors.white24),
+                        title: Text(
+                          r.title,
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (addr.isNotEmpty) ...[
+                              const SizedBox(height: 4),
+                              Row(
+                                children: [
+                                  const Icon(Icons.location_on_outlined,
+                                      size: 14, color: Colors.white38),
+                                  const SizedBox(width: 4),
+                                  Expanded(
+                                    child: Text(
+                                      addr,
+                                      style: const TextStyle(
+                                          color: Colors.white54,
+                                          fontSize: 12),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                            const SizedBox(height: 4),
+                            Text('${FormatUtils.vnd(r.basePrice)} / giờ',
+                                style: const TextStyle(
+                                    color: Color(0xFFFFD700),
+                                    fontSize: 12)),
+                          ],
+                        ),
+                        trailing: _statusBadge(r.status),
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
         ],
+      ),
+    );
+  }
+
+  Widget _statusChip(String value, String label) {
+    final selected = _statusFilter == value;
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: FilterChip(
+        label: Text(
+          label,
+          style: TextStyle(
+            color: selected ? Colors.black : Colors.white70,
+            fontSize: 12,
+          ),
+        ),
+        selected: selected,
+        selectedColor: const Color(0xFFFFD700),
+        backgroundColor: const Color(0xFF1A1A1A),
+        checkmarkColor: Colors.black,
+        onSelected: (_) => setState(() => _statusFilter = value),
+      ),
+    );
+  }
+
+  Widget _statusBadge(String status) {
+    Color c;
+    String t;
+    switch (status) {
+      case 'pending_review':
+        c = Colors.orange;
+        t = 'Chờ duyệt';
+        break;
+      case 'available':
+        c = Colors.green;
+        t = 'Khả dụng';
+        break;
+      case 'maintenance':
+        c = Colors.blueGrey;
+        t = 'Bảo trì';
+        break;
+      case 'unavailable':
+      default:
+        c = Colors.redAccent;
+        t = 'Không khả dụng';
+    }
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: c.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: c.withValues(alpha: 0.35)),
+      ),
+      child: Text(
+        t,
+        style: TextStyle(
+          color: c,
+          fontSize: 11,
+          fontWeight: FontWeight.bold,
+        ),
       ),
     );
   }

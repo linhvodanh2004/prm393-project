@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../models/booking_model.dart';
 import '../../services/booking_service.dart';
 import '../../utils/format_utils.dart';
+import 'admin_revenue_screen.dart';
 
 class AdminBookingsScreen extends StatefulWidget {
   const AdminBookingsScreen({super.key});
@@ -105,6 +106,18 @@ class _AdminBookingsScreenState extends State<AdminBookingsScreen> {
         backgroundColor: const Color(0xFF111111),
         elevation: 0,
         centerTitle: true,
+        actions: [
+          IconButton(
+            tooltip: 'Doanh thu nền tảng',
+            icon: const Icon(Icons.show_chart, color: Colors.white),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const AdminRevenueScreen()),
+              );
+            },
+          ),
+        ],
       ),
       body: Column(
         children: [

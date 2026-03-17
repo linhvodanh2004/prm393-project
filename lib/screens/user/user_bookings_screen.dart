@@ -44,7 +44,7 @@ class _UserBookingsScreenState extends State<UserBookingsScreen>
       final hostData = hostDoc.data();
       final hostName = hostData?['fullName'] ??
           hostData?['displayName'] ??
-          'Chủ nhà';
+          'Đối tác';
       final hostAvatar = hostData?['photoURL'] as String? ?? '';
 
       final user = FirebaseAuth.instance.currentUser!;
@@ -237,7 +237,7 @@ class _UserBookingsScreenState extends State<UserBookingsScreen>
                       onPressed: () => _startChatWithHost(b),
                       icon: const Icon(Icons.chat_bubble_outline),
                       color: const Color(0xFFD4A853),
-                      tooltip: 'Nhắn tin chủ nhà',
+                      tooltip: 'Nhắn tin đối tác',
                     ),
                   ],
                 ),

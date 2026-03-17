@@ -115,7 +115,7 @@ class _HostBookingsScreenState extends State<HostBookingsScreen>
         b.userId,
         b.userName,
         guestAvatar,
-        host.displayName ?? 'Chủ nhà',
+        host.displayName ?? 'Đối tác',
         host.photoURL ?? '',
       );
 
