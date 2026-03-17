@@ -7,7 +7,7 @@ import '../user/user_bookings_screen.dart';
 import '../host/host_bookings_screen.dart';
 import '../profile/become_host_screen.dart';
 import '../chat/chat_detail_screen.dart';
-import 'package:intl/intl.dart';
+import '../../utils/format_utils.dart';
 
 class NotificationScreen extends StatefulWidget {
   const NotificationScreen({super.key});
@@ -80,10 +80,6 @@ class _NotificationScreenState extends State<NotificationScreen> {
   String _currentRole() {
     // Role is stored locally; will be enhanced once UserModel is passed down
     return 'USER';
-  }
-
-  String _formatDate(DateTime date) {
-    return DateFormat('dd/MM HH:mm').format(date);
   }
 
   IconData _getIconForType(String type) {
@@ -223,7 +219,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      _formatDate(notif.createdAt),
+                      FormatUtils.dateTimeShortVi(notif.createdAt),
                       style: const TextStyle(
                         color: Colors.white30,
                         fontSize: 10,

@@ -2,12 +2,12 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:table_calendar/table_calendar.dart';
-import 'package:intl/intl.dart';
 
 import '../../models/room_model.dart';
 import '../../models/daily_price_model.dart';
 import '../../services/room_service.dart';
 import '../../widgets/common/notification_badge_icon.dart';
+import '../../utils/format_utils.dart';
 
 class HostCalendarScreen extends StatefulWidget {
   const HostCalendarScreen({super.key});
@@ -87,7 +87,7 @@ class _HostCalendarScreenState extends State<HostCalendarScreen> {
             return AlertDialog(
               backgroundColor: const Color(0xFF1A1A1A),
               title: Text(
-                'Cập nhật ngày ${DateFormat('dd/MM/yyyy').format(date)}',
+                'Cập nhật ngày ${FormatUtils.dateVi(date)}',
                 style: const TextStyle(color: Colors.white),
               ),
               content: Column(
@@ -338,7 +338,7 @@ class _HostCalendarScreenState extends State<HostCalendarScreen> {
                                         child: Text(
                                           dailyData.isBlocked
                                               ? 'Khóa'
-                                              : '${(dailyData.price / 1000).toStringAsFixed(0)}k',
+                                              : FormatUtils.vndCompact(dailyData.price),
                                           style: TextStyle(
                                             color: dailyData.isBlocked
                                                 ? Colors.redAccent

@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:intl/intl.dart';
 import '../../models/booking_model.dart';
 import '../../services/booking_service.dart';
 import '../../services/chat_service.dart';
 import '../chat/chat_detail_screen.dart';
-import '../../widgets/common/notification_badge_icon.dart';
+import '../../utils/format_utils.dart';
 
 class UserBookingsScreen extends StatefulWidget {
   const UserBookingsScreen({super.key});
@@ -34,11 +33,6 @@ class _UserBookingsScreenState extends State<UserBookingsScreen>
     _tabController.dispose();
     super.dispose();
   }
-
-  String _fmtCurrency(double price) =>
-      NumberFormat.currency(locale: 'vi_VN', symbol: 'đ').format(price);
-
-  String _fmtDate(DateTime d) => DateFormat('dd/MM/yyyy HH:mm').format(d);
 
   Future<void> _startChatWithHost(BookingModel b) async {
     try {
@@ -203,7 +197,7 @@ class _UserBookingsScreenState extends State<UserBookingsScreen>
                     size: 14, color: Colors.white54),
                 const SizedBox(width: 6),
                 Text(
-                    '${_fmtDate(b.checkIn)} → ${_fmtDate(b.checkOut)}',
+                    '${FormatUtils.dateTimeVi(b.checkIn)} → ${FormatUtils.dateTimeVi(b.checkOut)}',
                     style: const TextStyle(
                         color: Colors.white70, fontSize: 13)),
               ],
@@ -222,7 +216,7 @@ class _UserBookingsScreenState extends State<UserBookingsScreen>
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(_fmtCurrency(b.totalPrice),
+                Text(FormatUtils.vnd(b.totalPrice),
                     style: const TextStyle(
                         color: Color(0xFFD4A853),
                         fontSize: 16,

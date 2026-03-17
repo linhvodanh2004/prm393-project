@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:intl/intl.dart';
 import '../../models/booking_model.dart';
 import '../../services/booking_service.dart';
 import '../../services/chat_service.dart';
 import '../chat/chat_detail_screen.dart';
 import '../../widgets/common/notification_badge_icon.dart';
+import '../../utils/format_utils.dart';
 
 class HostBookingsScreen extends StatefulWidget {
   const HostBookingsScreen({super.key});
@@ -34,11 +34,6 @@ class _HostBookingsScreenState extends State<HostBookingsScreen>
     _tabController.dispose();
     super.dispose();
   }
-
-  String _fmtCurrency(double p) =>
-      NumberFormat.currency(locale: 'vi_VN', symbol: 'đ').format(p);
-
-  String _fmtDate(DateTime d) => DateFormat('dd/MM/yyyy HH:mm').format(d);
 
   Future<void> _confirmAction(
       BookingModel b, String newStatus, String label) async {
@@ -211,7 +206,7 @@ class _HostBookingsScreenState extends State<HostBookingsScreen>
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis),
                 ),
-                Text(_fmtCurrency(b.totalPrice),
+                Text(FormatUtils.vnd(b.totalPrice),
                     style: const TextStyle(
                         color: Color(0xFFD4A853),
                         fontWeight: FontWeight.bold)),
@@ -221,7 +216,7 @@ class _HostBookingsScreenState extends State<HostBookingsScreen>
             _infoRow(Icons.person, 'Khách: ${b.userName}'),
             const SizedBox(height: 4),
             _infoRow(Icons.calendar_month,
-                '${_fmtDate(b.checkIn)} → ${_fmtDate(b.checkOut)}'),
+                '${FormatUtils.dateTimeVi(b.checkIn)} → ${FormatUtils.dateTimeVi(b.checkOut)}'),
             const SizedBox(height: 4),
             _infoRow(Icons.group, '${b.guestCount} khách'),
             if (b.note != null && b.note!.isNotEmpty) ...[

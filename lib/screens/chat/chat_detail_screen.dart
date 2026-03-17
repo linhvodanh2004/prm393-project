@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:intl/intl.dart';
 import '../../models/chat_model.dart';
 import '../../services/chat_service.dart';
+import '../../utils/format_utils.dart';
 
 class ChatDetailScreen extends StatefulWidget {
   final String roomId;
@@ -58,10 +58,6 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
         );
       }
     }
-  }
-
-  String _formatTime(DateTime date) {
-    return DateFormat('HH:mm').format(date);
   }
 
   @override
@@ -172,7 +168,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              _formatTime(msg.createdAt),
+                              FormatUtils.timeVi(msg.createdAt),
                               style: TextStyle(
                                 color: isMe ? Colors.black54 : Colors.white54,
                                 fontSize: 10,

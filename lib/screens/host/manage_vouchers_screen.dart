@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:intl/intl.dart';
 import '../../models/voucher_model.dart';
 import '../../services/voucher_service.dart';
+import '../../utils/format_utils.dart';
 
 class ManageVouchersScreen extends StatefulWidget {
   /// Pass 'HOST' to manage host-scoped vouchers, 'ADMIN' for global vouchers.
@@ -22,8 +22,7 @@ class _ManageVouchersScreenState extends State<ManageVouchersScreen> {
       ? _service.getVouchersByHost(_uid)
       : _service.getGlobalVouchers();
 
-  String _fmtDate(DateTime? d) =>
-      d == null ? '—' : DateFormat('dd/MM/yyyy').format(d);
+  String _fmtDate(DateTime? d) => d == null ? '—' : FormatUtils.dateVi(d);
 
   void _openForm({VoucherModel? existing}) {
     showModalBottomSheet(
@@ -139,7 +138,7 @@ class _ManageVouchersScreenState extends State<ManageVouchersScreen> {
   Widget _buildCard(VoucherModel v) {
     final discountLabel = v.type == 'PERCENT'
         ? '${v.value.toStringAsFixed(0)}%'
-        : '${(v.value / 1000).toStringAsFixed(0)}k₫';
+        : FormatUtils.vndCompact(v.value);
 
     return Card(
       color: const Color(0xFF1A1A1A),
@@ -173,7 +172,7 @@ class _ManageVouchersScreenState extends State<ManageVouchersScreen> {
                 style: const TextStyle(color: Colors.white70, fontSize: 14)),
             if (v.minSubtotal > 0)
               Text(
-                  'Đơn tối thiểu: ${(v.minSubtotal / 1000).toStringAsFixed(0)}k₫',
+                  'Đơn tối thiểu: ${FormatUtils.vndCompact(v.minSubtotal)}',
                   style:
                       const TextStyle(color: Colors.white38, fontSize: 12)),
             Text('Hết hạn: ${_fmtDate(v.endAt)}',
@@ -389,7 +388,7 @@ class _VoucherFormSheetState extends State<_VoucherFormSheet> {
                       Text(
                         _endAt == null
                             ? 'Ngày hết hạn (tùy chọn)'
-                            : 'Hết hạn: ${DateFormat('dd/MM/yyyy').format(_endAt!)}',
+                            : 'Hết hạn: ${FormatUtils.dateVi(_endAt!)}',
                         style: TextStyle(
                             color: _endAt == null
                                 ? Colors.white38

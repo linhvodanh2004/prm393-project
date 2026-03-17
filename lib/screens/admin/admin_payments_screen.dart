@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import '../../models/booking_model.dart';
 import '../../services/booking_service.dart';
+import '../../utils/format_utils.dart';
 
 class AdminPaymentsScreen extends StatefulWidget {
   const AdminPaymentsScreen({super.key});
@@ -26,11 +26,6 @@ class _AdminPaymentsScreenState extends State<AdminPaymentsScreen>
     _tabController.dispose();
     super.dispose();
   }
-
-  String _fmtCurrency(double p) =>
-      NumberFormat.currency(locale: 'vi_VN', symbol: 'đ').format(p);
-
-  String _fmtDate(DateTime d) => DateFormat('dd/MM/yyyy').format(d);
 
   @override
   Widget build(BuildContext context) {
@@ -121,7 +116,7 @@ class _AdminPaymentsScreenState extends State<AdminPaymentsScreen>
             children: [
               const Text('Tổng doanh thu',
                   style: TextStyle(color: Colors.white54, fontSize: 13)),
-              Text(_fmtCurrency(total),
+              Text(FormatUtils.vnd(total),
                   style: const TextStyle(
                       color: Color(0xFFFFD700),
                       fontSize: 20,
@@ -147,13 +142,13 @@ class _AdminPaymentsScreenState extends State<AdminPaymentsScreen>
             maxLines: 1,
             overflow: TextOverflow.ellipsis),
         subtitle: Text(
-            '${b.userName}  •  ${_fmtDate(b.checkIn)} → ${_fmtDate(b.checkOut)}',
+            '${b.userName}  •  ${FormatUtils.dateVi(b.checkIn)} → ${FormatUtils.dateVi(b.checkOut)}',
             style: const TextStyle(color: Colors.white38, fontSize: 11)),
         trailing: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
-            Text(_fmtCurrency(b.totalPrice),
+            Text(FormatUtils.vnd(b.totalPrice),
                 style: const TextStyle(
                     color: Color(0xFFFFD700),
                     fontWeight: FontWeight.bold,
@@ -220,7 +215,7 @@ class _AdminPaymentsScreenState extends State<AdminPaymentsScreen>
                 subtitle: Text('${b.userName}  •  Đã hủy',
                     style: const TextStyle(
                         color: Colors.white38, fontSize: 11)),
-                trailing: Text(_fmtCurrency(b.totalPrice),
+                trailing: Text(FormatUtils.vnd(b.totalPrice),
                     style: const TextStyle(
                         color: Colors.redAccent,
                         fontWeight: FontWeight.bold)),

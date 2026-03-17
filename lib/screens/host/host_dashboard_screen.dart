@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:fl_chart/fl_chart.dart';
-import 'package:intl/intl.dart';
 
 import '../../models/booking_model.dart';
 import '../../services/revenue_service.dart';
+import '../../utils/format_utils.dart';
 
 class HostDashboardScreen extends StatefulWidget {
   const HostDashboardScreen({super.key});
@@ -18,19 +18,6 @@ class _HostDashboardScreenState extends State<HostDashboardScreen> {
   final RevenueService _revenueService = RevenueService();
 
   int _selectedYear = DateTime.now().year;
-
-  String _formatCurrency(double price) {
-    if (price >= 1000000) {
-      return '${(price / 1000000).toStringAsFixed(1)}M';
-    } else if (price >= 1000) {
-      return '${(price / 1000).toStringAsFixed(0)}k';
-    }
-    return price.toStringAsFixed(0);
-  }
-
-  String _formatFullCurrency(double price) {
-    return NumberFormat.currency(locale: 'vi_VN', symbol: 'đ').format(price);
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -172,7 +159,7 @@ class _HostDashboardScreenState extends State<HostDashboardScreen> {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        _formatFullCurrency(totalRevenueYear),
+                        FormatUtils.vnd(totalRevenueYear),
                         style: const TextStyle(
                           color: Color(0xFFD4A853),
                           fontSize: 28,
@@ -220,7 +207,7 @@ class _HostDashboardScreenState extends State<HostDashboardScreen> {
                               ),
                               children: [
                                 TextSpan(
-                                  text: _formatFullCurrency(rod.toY),
+                                  text: FormatUtils.vnd(rod.toY),
                                   style: const TextStyle(
                                     color: Color(0xFFD4A853),
                                     fontWeight: FontWeight.w500,
@@ -259,7 +246,7 @@ class _HostDashboardScreenState extends State<HostDashboardScreen> {
                               return Padding(
                                 padding: const EdgeInsets.only(right: 8),
                                 child: Text(
-                                  _formatCurrency(value),
+                                  FormatUtils.vndCompactNoSymbol(value),
                                   style: const TextStyle(
                                     color: Colors.white54,
                                     fontSize: 10,

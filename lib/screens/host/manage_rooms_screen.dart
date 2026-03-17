@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:intl/intl.dart';
 import '../../models/room_model.dart';
 import '../../services/room_service.dart';
 import 'edit_room_screen.dart';
+import '../../utils/format_utils.dart';
 
 class ManageRoomsScreen extends StatefulWidget {
   const ManageRoomsScreen({super.key});
@@ -16,11 +16,6 @@ class ManageRoomsScreen extends StatefulWidget {
 class _ManageRoomsScreenState extends State<ManageRoomsScreen> {
   final RoomService _roomService = RoomService();
   final String? _hostId = FirebaseAuth.instance.currentUser?.uid;
-
-  String _formatPrice(double price) {
-    final formatCurrency = NumberFormat.currency(locale: 'vi_VN', symbol: 'đ');
-    return formatCurrency.format(price);
-  }
 
   void _navigateToAddRoom() {
     Navigator.push(
@@ -250,7 +245,7 @@ class _ManageRoomsScreenState extends State<ManageRoomsScreen> {
                               Row(
                                 children: [
                                   Text(
-                                    _formatPrice(room.basePrice),
+                                    FormatUtils.vnd(room.basePrice),
                                     style: const TextStyle(
                                       color: Color(0xFFD4A853),
                                       fontSize: 14,

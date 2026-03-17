@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import '../../models/booking_model.dart';
 import '../../services/booking_service.dart';
+import '../../utils/format_utils.dart';
 
 class AdminBookingsScreen extends StatefulWidget {
   const AdminBookingsScreen({super.key});
@@ -33,11 +33,6 @@ class _AdminBookingsScreenState extends State<AdminBookingsScreen> {
     'cancelled': 'Đã hủy',
     'rejected': 'Bị từ chối',
   };
-
-  String _fmtCurrency(double p) =>
-      NumberFormat.currency(locale: 'vi_VN', symbol: 'đ').format(p);
-
-  String _fmtDate(DateTime d) => DateFormat('dd/MM/yyyy').format(d);
 
   Future<void> _forceAction(
       BuildContext context, BookingModel b, String action) async {
@@ -236,11 +231,11 @@ class _AdminBookingsScreenState extends State<AdminBookingsScreen> {
                 style:
                     const TextStyle(color: Colors.white38, fontSize: 12)),
             Text(
-                '${_fmtDate(b.checkIn)} → ${_fmtDate(b.checkOut)}',
+                '${FormatUtils.dateVi(b.checkIn)} → ${FormatUtils.dateVi(b.checkOut)}',
                 style:
                     const TextStyle(color: Colors.white54, fontSize: 12)),
             const SizedBox(height: 6),
-            Text(_fmtCurrency(b.totalPrice),
+            Text(FormatUtils.vnd(b.totalPrice),
                 style: const TextStyle(
                     color: Color(0xFFFFD700), fontWeight: FontWeight.bold)),
             if (canCancel || canComplete) ...[
