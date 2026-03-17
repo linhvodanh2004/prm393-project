@@ -1,11 +1,14 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../models/room_model.dart';
 import '../../models/user_model.dart';
+import '../../models/voucher_model.dart';
 import '../../services/chat_service.dart';
 import '../../services/room_service.dart';
+import '../../services/voucher_service.dart';
 import '../../utils/format_utils.dart';
 import '../chat/chat_detail_screen.dart';
 import '../user/room_details_screen.dart';
@@ -28,6 +31,7 @@ class _HostPublicProfileScreenState extends State<HostPublicProfileScreen> {
   final _db = FirebaseFirestore.instance;
   final _roomService = RoomService();
   final _chatService = ChatService();
+  final _voucherService = VoucherService();
 
   bool _sendingQuick = false;
 
@@ -284,6 +288,95 @@ class _HostPublicProfileScreenState extends State<HostPublicProfileScreen> {
     );
   }
 
+  Future<void> _copyVoucher(String code) async {
+    await Clipboard.setData(ClipboardData(text: code));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Đã sao chép mã voucher'),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  String _discountLabel(VoucherModel v) {
+    if (v.type == 'PERCENT') {
+      final pct = v.value.toStringAsFixed(0);
+      if (v.maxDiscount != null && v.maxDiscount! > 0) {
+        return 'Giảm $pct% (tối đa ${FormatUtils.vndCompact(v.maxDiscount!)})';
+      }
+      return 'Giảm $pct%';
+    }
+    return 'Giảm ${FormatUtils.vndCompact(v.value)}';
+  }
+
+  Widget _voucherTile(VoucherModel v) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1A1A1A),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.white12),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        v.code,
+                        style: const TextStyle(
+                          color: Color(0xFFFFD700),
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                          letterSpacing: 1.1,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    if (v.endAt != null)
+                      Text(
+                        'HSD: ${FormatUtils.dateVi(v.endAt!)}',
+                        style: const TextStyle(
+                          color: Colors.white38,
+                          fontSize: 11,
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  _discountLabel(v),
+                  style: const TextStyle(color: Colors.white70, fontSize: 13),
+                ),
+                if (v.minSubtotal > 0)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Text(
+                      'Đơn tối thiểu: ${FormatUtils.vndCompact(v.minSubtotal)}',
+                      style: const TextStyle(color: Colors.white38, fontSize: 12),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          IconButton(
+            tooltip: 'Sao chép',
+            onPressed: () => _copyVoucher(v.code),
+            icon: const Icon(Icons.copy, color: Colors.white70, size: 18),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -415,6 +508,69 @@ class _HostPublicProfileScreenState extends State<HostPublicProfileScreen> {
                     ],
                   ),
                 ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                child: Row(
+                  children: const [
+                    Icon(Icons.local_offer_outlined,
+                        color: Color(0xFFD4A853), size: 16),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Voucher đang áp dụng',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              StreamBuilder<List<VoucherModel>>(
+                stream: _voucherService.getActiveVouchersByHost(widget.hostId),
+                builder: (context, vSnap) {
+                  if (vSnap.connectionState == ConnectionState.waiting) {
+                    return const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 12),
+                      child: Center(
+                        child: CircularProgressIndicator(
+                            color: Color(0xFFD4A853)),
+                      ),
+                    );
+                  }
+                  if (vSnap.hasError) {
+                    return Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                      child: Text(
+                        'Lỗi tải voucher: ${vSnap.error}',
+                        style: const TextStyle(color: Colors.redAccent),
+                      ),
+                    );
+                  }
+                  final vouchers =
+                      (vSnap.data ?? []).where((v) => v.isValid).toList();
+                  if (vouchers.isEmpty) {
+                    return const Padding(
+                      padding: EdgeInsets.fromLTRB(16, 0, 16, 12),
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          'Chưa có voucher',
+                          style: TextStyle(color: Colors.white38),
+                        ),
+                      ),
+                    );
+                  }
+                  return Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                    child: Column(
+                      children: vouchers.map(_voucherTile).toList(),
+                    ),
+                  );
+                },
               ),
               const Padding(
                 padding: EdgeInsets.fromLTRB(16, 4, 16, 8),

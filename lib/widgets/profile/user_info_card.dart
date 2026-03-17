@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../models/user_model.dart';
-import 'package:intl/intl.dart';
+import '../../utils/format_utils.dart';
 
 class UserInfoCard extends StatelessWidget {
   final UserModel userData;
@@ -74,7 +74,11 @@ class UserInfoCard extends StatelessWidget {
           const SizedBox(height: 16),
 
           // Email
-          _buildInfoRow(Icons.email, 'Email', userData.email ?? fallbackEmail),
+          _buildInfoRow(
+            Icons.email,
+            'Email',
+            userData.email.isNotEmpty ? userData.email : fallbackEmail,
+          ),
           const SizedBox(height: 12),
 
 
@@ -110,7 +114,7 @@ class UserInfoCard extends StatelessWidget {
             _buildInfoRow(
               Icons.calendar_today,
               'Ngày sinh',
-              DateFormat('dd/MM/yyyy').format(userData.dateOfBirth!),
+              FormatUtils.dateVi(userData.dateOfBirth!),
             ),
           ],
         ],

@@ -6,6 +6,7 @@ import '../profile/user_details_screen.dart';
 import '../user/explore_screen.dart';
 import '../user/favorites_screen.dart';
 import '../user/user_bookings_screen.dart';
+import '../user/user_vouchers_screen.dart';
 import '../chat/chat_list_screen.dart';
 
 // Host Screens
@@ -101,14 +102,14 @@ class _HomeScreenState extends State<HomeScreen> {
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
           border: Border(
-            top: BorderSide(color: Colors.white.withOpacity(0.05), width: 1),
+            top: BorderSide(color: Colors.white.withValues(alpha: 0.05), width: 1),
           ),
         ),
         child: BottomNavigationBar(
           backgroundColor: const Color(0xFF111111),
           type: BottomNavigationBarType.fixed,
           selectedItemColor: const Color(0xFFD4A853),
-          unselectedItemColor: Colors.white.withOpacity(0.4),
+          unselectedItemColor: Colors.white.withValues(alpha: 0.4),
           currentIndex: _currentIndex,
           onTap: (index) {
             setState(() {
@@ -146,6 +147,7 @@ class _HomeScreenState extends State<HomeScreen> {
         return const [
           ExploreScreen(),
           FavoritesScreen(),
+          UserVouchersScreen(),
           UserBookingsScreen(),
           UserDetailsScreen(),
         ];
@@ -234,6 +236,11 @@ class _HomeScreenState extends State<HomeScreen> {
             icon: Icon(Icons.favorite_outline),
             activeIcon: Icon(Icons.favorite),
             label: 'Yêu thích',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.local_offer_outlined),
+            activeIcon: Icon(Icons.local_offer_rounded),
+            label: 'Voucher',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.airplane_ticket_outlined),

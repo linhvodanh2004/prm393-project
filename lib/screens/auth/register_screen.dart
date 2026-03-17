@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 import '../../services/auth_service.dart';
 import '../../DTOs/register_dto.dart';
 import '../../widgets/common/address_picker_sheet.dart';
-import '../../widgets/custom_text_field.dart';
 import '../../widgets/app_logo.dart';
 
 class RegisterScreen extends StatefulWidget {
@@ -37,7 +36,6 @@ class _RegisterScreenState extends State<RegisterScreen>
   late final AnimationController _fadeController;
   late final AnimationController _progressController;
   late final Animation<double> _fadeAnimation;
-  late final Animation<double> _progressAnimation;
 
   @override
   void initState() {
@@ -55,10 +53,6 @@ class _RegisterScreenState extends State<RegisterScreen>
     _fadeAnimation = CurvedAnimation(
       parent: _fadeController,
       curve: Curves.easeOut,
-    );
-    _progressAnimation = CurvedAnimation(
-      parent: _progressController,
-      curve: Curves.easeInOut,
     );
 
     _fadeController.forward();

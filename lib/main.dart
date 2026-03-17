@@ -9,7 +9,6 @@ import 'screens/home/home_screen.dart';
 import 'screens/auth/complete_profile_screen.dart';
 import 'models/user_model.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'services/fcm_service.dart';
 
@@ -17,7 +16,7 @@ import 'services/fcm_service.dart';
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   // Background message handling logic can go here
-  print("Handling a background message: ${message.messageId}");
+  debugPrint("Handling a background message: ${message.messageId}");
 }
 
 void main() async {
@@ -29,7 +28,7 @@ void main() async {
   try {
     await FCMService().init();
   } catch (e) {
-    print("FCM Init error: $e");
+    debugPrint("FCM Init error: $e");
   }
 
   runApp(const MyApp());

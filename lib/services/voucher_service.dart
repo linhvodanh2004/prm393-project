@@ -97,12 +97,36 @@ class VoucherService {
 
   // ---------- Queries ----------
 
-  /// Stream vouchers created by a specific host (scope=HOST, hostId=<uid>)
+  /// Stream vouchers created by a specific host (scope=HOST, hostId={uid})
   Stream<List<VoucherModel>> getVouchersByHost(String hostId) {
     return _db
         .collection('vouchers')
         .where('scope', isEqualTo: 'HOST')
         .where('hostId', isEqualTo: hostId)
+        .orderBy('createdAt', descending: true)
+        .snapshots()
+        .map((s) =>
+            s.docs.map((d) => VoucherModel.fromMap(d.data(), d.id)).toList());
+  }
+
+  /// Stream active vouchers (any scope). Caller can additionally filter by `voucher.isValid`.
+  Stream<List<VoucherModel>> getActiveVouchers() {
+    return _db
+        .collection('vouchers')
+        .where('isActive', isEqualTo: true)
+        .orderBy('createdAt', descending: true)
+        .snapshots()
+        .map((s) =>
+            s.docs.map((d) => VoucherModel.fromMap(d.data(), d.id)).toList());
+  }
+
+  /// Stream active vouchers for a host (scope=HOST, hostId={uid}).
+  Stream<List<VoucherModel>> getActiveVouchersByHost(String hostId) {
+    return _db
+        .collection('vouchers')
+        .where('scope', isEqualTo: 'HOST')
+        .where('hostId', isEqualTo: hostId)
+        .where('isActive', isEqualTo: true)
         .orderBy('createdAt', descending: true)
         .snapshots()
         .map((s) =>
@@ -124,6 +148,18 @@ class VoucherService {
     return _db
         .collection('vouchers')
         .where('scope', isEqualTo: 'GLOBAL')
+        .orderBy('createdAt', descending: true)
+        .snapshots()
+        .map((s) =>
+            s.docs.map((d) => VoucherModel.fromMap(d.data(), d.id)).toList());
+  }
+
+  /// Stream only active global vouchers (scope=GLOBAL).
+  Stream<List<VoucherModel>> getActiveGlobalVouchers() {
+    return _db
+        .collection('vouchers')
+        .where('scope', isEqualTo: 'GLOBAL')
+        .where('isActive', isEqualTo: true)
         .orderBy('createdAt', descending: true)
         .snapshots()
         .map((s) =>
