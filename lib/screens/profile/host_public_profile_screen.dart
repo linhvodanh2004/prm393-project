@@ -6,7 +6,9 @@ import 'package:flutter/services.dart';
 import '../../models/room_model.dart';
 import '../../models/user_model.dart';
 import '../../models/voucher_model.dart';
+import '../../models/property_model.dart';
 import '../../services/chat_service.dart';
+import '../../services/property_service.dart';
 import '../../services/room_service.dart';
 import '../../services/voucher_service.dart';
 import '../../utils/format_utils.dart';
@@ -32,6 +34,7 @@ class _HostPublicProfileScreenState extends State<HostPublicProfileScreen> {
   final _roomService = RoomService();
   final _chatService = ChatService();
   final _voucherService = VoucherService();
+  final _propertyService = PropertyService();
 
   bool _sendingQuick = false;
 
@@ -40,6 +43,9 @@ class _HostPublicProfileScreenState extends State<HostPublicProfileScreen> {
     if (!doc.exists) return null;
     return UserModel.fromFirestore(doc);
   }
+
+  Stream<PropertyModel?> _propertyStream() =>
+      _propertyService.getPropertyByHost(widget.hostId);
 
   Future<void> _openChat(UserModel host, {String? quickMessage}) async {
     final currentUser = FirebaseAuth.instance.currentUser;
@@ -411,102 +417,119 @@ class _HostPublicProfileScreenState extends State<HostPublicProfileScreen> {
             children: [
               Padding(
                 padding: const EdgeInsets.all(16),
-                child: Container(
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF1A1A1A),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.white12),
-                  ),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      CircleAvatar(
-                        radius: 26,
-                        backgroundColor: const Color(0xFF2A2A2A),
-                        backgroundImage: host.photoURL != null &&
-                                host.photoURL!.isNotEmpty
-                            ? NetworkImage(host.photoURL!)
-                            : null,
-                        child: host.photoURL == null || host.photoURL!.isEmpty
-                            ? const Icon(Icons.person, color: Colors.white54)
-                            : null,
+                child: StreamBuilder<PropertyModel?>(
+                  stream: _propertyStream(),
+                  builder: (context, propSnap) {
+                    final p = propSnap.data;
+                    final title = (p?.title ?? '').trim().isNotEmpty
+                        ? p!.title
+                        : host.name;
+                    final address = (p?.address ?? '').trim().isNotEmpty
+                        ? p!.address
+                        : (host.address ?? '');
+                    final desc = (p?.description ?? '').trim();
+                    final imageUrl = (p?.coverImage ?? '').trim();
+
+                    return Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1A1A1A),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: Colors.white12),
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              host.name,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            if (host.email.isNotEmpty)
-                              _infoRow(Icons.email_outlined, host.email),
-                            if ((host.phoneNumber ?? '').isNotEmpty)
-                              _infoRow(Icons.phone_outlined, host.phoneNumber!),
-                            if ((host.address ?? '').isNotEmpty)
-                              _infoRow(Icons.location_on_outlined, host.address!),
-                            const SizedBox(height: 10),
-                            Row(
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          CircleAvatar(
+                            radius: 26,
+                            backgroundColor: const Color(0xFF2A2A2A),
+                            backgroundImage: imageUrl.isNotEmpty
+                                ? NetworkImage(imageUrl)
+                                : (host.photoURL != null &&
+                                        host.photoURL!.isNotEmpty
+                                    ? NetworkImage(host.photoURL!)
+                                    : null),
+                            child: (imageUrl.isEmpty &&
+                                    (host.photoURL == null ||
+                                        host.photoURL!.isEmpty))
+                                ? const Icon(Icons.business, color: Colors.white54)
+                                : null,
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Expanded(
-                                  child: OutlinedButton.icon(
-                                    onPressed: _sendingQuick
-                                        ? null
-                                        : () => _openChat(host),
-                                    style: OutlinedButton.styleFrom(
-                                      foregroundColor: Colors.white,
-                                      side: const BorderSide(color: Colors.white24),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                      padding: const EdgeInsets.symmetric(vertical: 12),
-                                    ),
-                                    icon: const Icon(Icons.chat_bubble_outline, size: 18),
-                                    label: const Text('Nhắn tin'),
+                                Text(
+                                  title,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
                                   ),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: ElevatedButton.icon(
-                                    onPressed: _sendingQuick
-                                        ? null
-                                        : () => _showQuickMessageSheet(host),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: const Color(0xFFFFD700),
-                                      foregroundColor: Colors.black,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(12),
+                                if (address.trim().isNotEmpty)
+                                  _infoRow(Icons.location_on_outlined, address),
+                                if (desc.isNotEmpty)
+                                  _infoRow(Icons.info_outline, desc),
+                                const SizedBox(height: 10),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: OutlinedButton.icon(
+                                        onPressed: _sendingQuick
+                                            ? null
+                                            : () => _openChat(host),
+                                        style: OutlinedButton.styleFrom(
+                                          foregroundColor: Colors.white,
+                                          side: const BorderSide(color: Colors.white24),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(12),
+                                          ),
+                                          padding: const EdgeInsets.symmetric(vertical: 12),
+                                        ),
+                                        icon: const Icon(Icons.chat_bubble_outline, size: 18),
+                                        label: const Text('Nhắn tin'),
                                       ),
-                                      padding: const EdgeInsets.symmetric(vertical: 12),
                                     ),
-                                    icon: _sendingQuick
-                                        ? const SizedBox(
-                                            width: 16,
-                                            height: 16,
-                                            child: CircularProgressIndicator(
-                                              strokeWidth: 2,
-                                              color: Colors.black,
-                                            ),
-                                          )
-                                        : const Icon(Icons.flash_on, size: 18),
-                                    label: const Text('Gửi nhanh'),
-                                  ),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: ElevatedButton.icon(
+                                        onPressed: _sendingQuick
+                                            ? null
+                                            : () => _showQuickMessageSheet(host),
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: const Color(0xFFFFD700),
+                                          foregroundColor: Colors.black,
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(12),
+                                          ),
+                                          padding: const EdgeInsets.symmetric(vertical: 12),
+                                        ),
+                                        icon: _sendingQuick
+                                            ? const SizedBox(
+                                                width: 16,
+                                                height: 16,
+                                                child: CircularProgressIndicator(
+                                                  strokeWidth: 2,
+                                                  color: Colors.black,
+                                                ),
+                                              )
+                                            : const Icon(Icons.flash_on, size: 18),
+                                        label: const Text('Gửi nhanh'),
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ],
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
+                    );
+                  },
                 ),
               ),
               Padding(
@@ -608,11 +631,12 @@ class _HostPublicProfileScreenState extends State<HostPublicProfileScreen> {
                     if (widget.initialRoomId != null) {
                       rooms = rooms.where((r) => r.id != widget.initialRoomId).toList();
                     }
+                    rooms = rooms.where((r) => r.status == 'available').toList();
 
                     if (rooms.isEmpty) {
                       return const Center(
                         child: Text(
-                          'Chủ nhà chưa có phòng nào khác',
+                          'Chủ nhà chưa có phòng khả dụng',
                           style: TextStyle(color: Colors.white38),
                         ),
                       );

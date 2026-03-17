@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../models/user_model.dart';
 import '../../models/host_request_model.dart';
+import '../../models/property_model.dart';
 
 class ManageUsersScreen extends StatefulWidget {
   const ManageUsersScreen({super.key});
@@ -43,6 +44,25 @@ class _ManageUsersScreenState extends State<ManageUsersScreen>
     batch.update(_db.collection('host_requests').doc(req.id),
         {'status': 'approved', 'updatedAt': FieldValue.serverTimestamp()});
     batch.update(_db.collection('users').doc(req.userId), {'role': 'HOST'});
+
+    // Map host request → hotel/property info
+    final now = DateTime.now();
+    final property = PropertyModel(
+      hostId: req.userId,
+      title: req.businessName,
+      description: req.description,
+      address: req.address,
+      coverImage: '',
+      policies: const [],
+      createdAt: now,
+      updatedAt: now,
+    );
+    batch.set(
+      _db.collection('properties').doc(req.userId),
+      property.toMap(),
+      SetOptions(merge: true),
+    );
+
     await batch.commit();
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -228,7 +248,7 @@ class _ManageUsersScreenState extends State<ManageUsersScreen>
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
               decoration: BoxDecoration(
-                color: roleColor.withOpacity(0.2),
+                color: roleColor.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(6),
               ),
               child: Text(u.role,

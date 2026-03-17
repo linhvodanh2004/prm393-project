@@ -8,6 +8,8 @@ import '../user/favorites_screen.dart';
 import '../user/user_bookings_screen.dart';
 import '../user/user_vouchers_screen.dart';
 import '../chat/chat_list_screen.dart';
+import '../../widgets/common/chat_badge_icon.dart';
+import '../../widgets/common/notification_badge_icon.dart';
 
 // Host Screens
 import '../host/host_dashboard_screen.dart';
@@ -72,26 +74,8 @@ class _HomeScreenState extends State<HomeScreen> {
         backgroundColor: const Color(0xFF111111),
         elevation: 0,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.chat_bubble_outline, color: Colors.white),
-            tooltip: 'Tin nhắn',
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const ChatListScreen()),
-              );
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.notifications_outlined, color: Colors.white),
-            tooltip: 'Thông báo',
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const NotificationScreen()),
-              );
-            },
-          ),
+          const ChatBadgeIcon(),
+          const NotificationBadgeIcon(),
         ],
       ),
       backgroundColor: const Color(0xFF0D0D0D),

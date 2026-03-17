@@ -240,7 +240,8 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
                   const SizedBox(height: 20),
 
                   // Host Property Card (If user is host)
-                  if (_userData != null && _userData!.role == 'host') ...[
+                  if (_userData != null &&
+                      _userData!.role.toUpperCase() == 'HOST') ...[
                     HostPropertyCard(
                       property: _propertyData,
                       hostId: _userData!.uid,

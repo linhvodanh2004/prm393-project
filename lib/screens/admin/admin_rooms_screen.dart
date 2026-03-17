@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../models/room_model.dart';
+import '../../utils/format_utils.dart';
 
 class AdminRoomsScreen extends StatefulWidget {
   const AdminRoomsScreen({super.key});
@@ -179,7 +180,7 @@ class _AdminRoomsScreenState extends State<AdminRoomsScreen>
                     style: const TextStyle(
                         color: Colors.white, fontWeight: FontWeight.bold)),
                 subtitle: Text(
-                    '${(r.basePrice / 1000).toStringAsFixed(0)}k₫ / đêm',
+                    '${FormatUtils.vnd(r.basePrice)} / giờ',
                     style: const TextStyle(
                         color: Color(0xFFFFD700), fontSize: 12)),
                 trailing: showActions

@@ -6,7 +6,6 @@ import 'package:table_calendar/table_calendar.dart';
 import '../../models/room_model.dart';
 import '../../models/daily_price_model.dart';
 import '../../services/room_service.dart';
-import '../../widgets/common/notification_badge_icon.dart';
 import '../../utils/format_utils.dart';
 
 class HostCalendarScreen extends StatefulWidget {
@@ -20,14 +19,14 @@ class _HostCalendarScreenState extends State<HostCalendarScreen> {
   final String? _hostId = FirebaseAuth.instance.currentUser?.uid;
   final RoomService _roomService = RoomService();
 
-  RoomModel? _selectedRoom;
+  String? _selectedRoomId;
   List<RoomModel> _rooms = [];
   bool _isLoadingRooms = true;
   StreamSubscription<List<RoomModel>>? _roomsSub;
 
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
-  Map<DateTime, DailyPriceModel> _dailyPricesMap = {};
+  final Map<DateTime, DailyPriceModel> _dailyPricesMap = {};
 
   final TextEditingController _priceController = TextEditingController();
   bool _isEditingBlocked = false;
@@ -46,15 +45,21 @@ class _HostCalendarScreenState extends State<HostCalendarScreen> {
   }
 
   Future<void> _loadRooms() async {
-    if (_hostId == null) return;
+    final hostId = _hostId;
+    if (hostId == null) return;
     try {
-      _roomsSub = _roomService.getRoomsByHost(_hostId!).listen((rooms) {
+      _roomsSub = _roomService.getRoomsByHost(hostId).listen((rooms) {
         if (mounted) {
           setState(() {
             _rooms = rooms;
             _isLoadingRooms = false;
-            if (_rooms.isNotEmpty && _selectedRoom == null) {
-              _selectedRoom = _rooms.first;
+            if (_rooms.isNotEmpty) {
+              // Keep selection stable across stream rebuilds.
+              final stillExists = _selectedRoomId != null &&
+                  _rooms.any((r) => r.id == _selectedRoomId);
+              _selectedRoomId = stillExists ? _selectedRoomId : _rooms.first.id;
+            } else {
+              _selectedRoomId = null;
             }
           });
         }
@@ -74,9 +79,10 @@ class _HostCalendarScreenState extends State<HostCalendarScreen> {
   DateTime _normalizeDate(DateTime d) => DateTime(d.year, d.month, d.day);
 
   void _showEditDayDialog(DateTime date, DailyPriceModel? existingData) {
+    final selectedRoom = _rooms.firstWhere((r) => r.id == _selectedRoomId);
     _priceController.text = existingData != null
         ? existingData.price.toStringAsFixed(0)
-        : _selectedRoom!.basePrice.toStringAsFixed(0);
+        : selectedRoom.basePrice.toStringAsFixed(0);
     _isEditingBlocked = existingData?.isBlocked ?? false;
 
     showDialog(
@@ -98,7 +104,7 @@ class _HostCalendarScreenState extends State<HostCalendarScreen> {
                     keyboardType: TextInputType.number,
                     style: const TextStyle(color: Colors.white),
                     decoration: InputDecoration(
-                      labelText: 'Giá cho đêm này (VNĐ)',
+                      labelText: 'Giá theo giờ cho ngày này (VNĐ)',
                       labelStyle: const TextStyle(color: Colors.white54),
                       enabledBorder: const UnderlineInputBorder(
                         borderSide: BorderSide(color: Colors.white24),
@@ -115,7 +121,7 @@ class _HostCalendarScreenState extends State<HostCalendarScreen> {
                       style: TextStyle(color: Colors.white70),
                     ),
                     value: _isEditingBlocked,
-                    activeColor: const Color(0xFFD4A853),
+                    activeThumbColor: const Color(0xFFD4A853),
                     onChanged: (val) {
                       setDialogState(() => _isEditingBlocked = val);
                     },
@@ -145,17 +151,16 @@ class _HostCalendarScreenState extends State<HostCalendarScreen> {
                     // Map dialog state to RoomService's DailyPriceModel
                     final dailyPrice = DailyPriceModel(
                       id: '',
-                      roomId: _selectedRoom!.id,
+                      roomId: selectedRoom.id,
                       date: date,
                       price: price,
                       isBlocked: _isEditingBlocked,
                     );
                     await _roomService.setDailyPrice(dailyPrice);
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Đã cập nhật lịch phòng')),
-                      );
-                    }
+                    if (!context.mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Đã cập nhật lịch phòng')),
+                    );
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFFD4A853),
@@ -214,16 +219,16 @@ class _HostCalendarScreenState extends State<HostCalendarScreen> {
                     vertical: 8,
                   ),
                   color: const Color(0xFF1A1A1A),
-                  child: DropdownButtonFormField<RoomModel>(
+                  child: DropdownButton<String>(
                     dropdownColor: const Color(0xFF2A2A2A),
-                    value: _selectedRoom,
-                    decoration: const InputDecoration(
-                      border: InputBorder.none,
-                      icon: Icon(Icons.hotel, color: Color(0xFFD4A853)),
-                    ),
+                    value: _selectedRoomId,
+                    isExpanded: true,
+                    underline: const SizedBox.shrink(),
+                    icon: const Icon(Icons.keyboard_arrow_down,
+                        color: Colors.white70),
                     items: _rooms.map((r) {
                       return DropdownMenuItem(
-                        value: r,
+                        value: r.id,
                         child: Text(
                           r.title,
                           style: const TextStyle(color: Colors.white),
@@ -232,7 +237,7 @@ class _HostCalendarScreenState extends State<HostCalendarScreen> {
                     }).toList(),
                     onChanged: (val) {
                       setState(() {
-                        _selectedRoom = val;
+                        _selectedRoomId = val;
                         _selectedDay = null; // reset selection
                       });
                     },
@@ -242,10 +247,10 @@ class _HostCalendarScreenState extends State<HostCalendarScreen> {
                 // Calendar Stream
                 Expanded(
                   child: StreamBuilder<List<DailyPriceModel>>(
-                    stream: _selectedRoom == null
+                    stream: _selectedRoomId == null
                         ? const Stream.empty()
                         : _roomService.getDailyPrices(
-                            _selectedRoom!.id,
+                            _selectedRoomId!,
                           ),
                     builder: (context, snapshot) {
                       if (snapshot.hasData) {

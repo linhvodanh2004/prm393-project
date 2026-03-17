@@ -125,7 +125,7 @@ class _UserVouchersScreenState extends State<UserVouchersScreen>
             Row(
               children: [
                 _chip(
-                  v.scope == 'GLOBAL' ? 'Global' : 'Specific Host',
+                  v.scope == 'GLOBAL' ? 'Toàn sàn' : 'Đối tác',
                   color: v.scope == 'GLOBAL'
                       ? const Color(0xFFD4A853)
                       : Colors.lightBlueAccent,
@@ -210,7 +210,7 @@ class _UserVouchersScreenState extends State<UserVouchersScreen>
         if (vouchers.isEmpty) {
           return const Center(
             child: Text(
-              'Chưa có voucher Global',
+              'Chưa có voucher Toàn sàn',
               style: TextStyle(color: Colors.white38),
             ),
           );
@@ -248,7 +248,7 @@ class _UserVouchersScreenState extends State<UserVouchersScreen>
         if (vouchers.isEmpty) {
           return const Center(
             child: Text(
-              'Chưa có voucher theo Host',
+              'Chưa có voucher Đối tác',
               style: TextStyle(color: Colors.white38),
             ),
           );
@@ -278,8 +278,8 @@ class _UserVouchersScreenState extends State<UserVouchersScreen>
           labelColor: const Color(0xFFD4A853),
           unselectedLabelColor: Colors.white54,
           tabs: const [
-            Tab(text: 'Global'),
-            Tab(text: 'Theo Host'),
+            Tab(text: 'Toàn sàn'),
+            Tab(text: 'Đối tác'),
           ],
         ),
       ),

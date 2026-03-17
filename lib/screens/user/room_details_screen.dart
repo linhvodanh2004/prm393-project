@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../models/room_model.dart';
 import '../../models/booking_model.dart';
 import '../../services/booking_service.dart';
+import '../../services/voucher_service.dart';
 import '../../utils/format_utils.dart';
 import '../profile/host_public_profile_screen.dart';
 
@@ -16,8 +16,6 @@ class RoomDetailsScreen extends StatefulWidget {
 }
 
 class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
-  final _firestore = FirebaseFirestore.instance;
-
   DateTime? _checkIn;
   DateTime? _checkOut;
   int _guestCount = 1;
@@ -66,118 +64,97 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
     return (diff.inSeconds / 3600.0).floor();
   }
 
-  Future<void> _pickDateTimeRange() async {
-    final now = DateTime.now();
-
-    // 1) Pick Check-in Date
-    final checkInDate = await showDatePicker(
+  Future<DateTime?> _pickDateTime({
+    required DateTime initial,
+    required DateTime firstDate,
+    required DateTime lastDate,
+  }) async {
+    final date = await showDatePicker(
       context: context,
-      initialDate: _checkIn ?? now,
+      initialDate: initial,
+      firstDate: firstDate,
+      lastDate: lastDate,
+      builder: (ctx, child) => Theme(
+        data: ThemeData.dark().copyWith(
+          colorScheme: const ColorScheme.dark(
+            primary: Color(0xFFFFD700),
+            onPrimary: Colors.black,
+            surface: Color(0xFF1A1A1A),
+          ),
+        ),
+        child: child!,
+      ),
+    );
+
+    if (date == null) return null;
+
+    if (!mounted) return null;
+    final time = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(initial),
+      builder: (ctx, child) => Theme(
+        data: ThemeData.dark().copyWith(
+          colorScheme: const ColorScheme.dark(
+            primary: Color(0xFFFFD700),
+            onPrimary: Colors.black,
+            surface: Color(0xFF1A1A1A),
+          ),
+        ),
+        child: child!,
+      ),
+    );
+
+    if (time == null) return null;
+
+    return DateTime(date.year, date.month, date.day, time.hour, time.minute);
+  }
+
+  Future<void> _pickCheckIn() async {
+    final now = DateTime.now();
+    final picked = await _pickDateTime(
+      initial: _checkIn ?? now,
       firstDate: now,
       lastDate: now.add(const Duration(days: 90)),
-      builder: (ctx, child) => Theme(
-        data: ThemeData.dark().copyWith(
-          colorScheme: const ColorScheme.dark(
-            primary: Color(0xFFFFD700),
-            onPrimary: Colors.black,
-            surface: Color(0xFF1A1A1A),
-          ),
-        ),
-        child: child!,
-      ),
     );
+    if (picked == null) return;
 
-    if (checkInDate == null) return;
+    setState(() {
+      _checkIn = picked;
+      // If existing check-out is now invalid, clear it.
+      if (_checkOut != null &&
+          (_checkOut!.isBefore(picked) ||
+              _checkOut!.isAtSameMomentAs(picked))) {
+        _checkOut = null;
+      }
+      _clearVoucher();
+    });
+  }
 
-    // 2) Pick Check-in Time
-    if (!mounted) return;
-    final checkInTime = await showTimePicker(
-      context: context,
-      initialTime: TimeOfDay.fromDateTime(_checkIn ?? now),
-      builder: (ctx, child) => Theme(
-        data: ThemeData.dark().copyWith(
-          colorScheme: const ColorScheme.dark(
-            primary: Color(0xFFFFD700),
-            onPrimary: Colors.black,
-            surface: Color(0xFF1A1A1A),
-          ),
-        ),
-        child: child!,
-      ),
-    );
-
-    if (checkInTime == null) return;
-
-    final start = DateTime(
-      checkInDate.year,
-      checkInDate.month,
-      checkInDate.day,
-      checkInTime.hour,
-      checkInTime.minute,
-    );
-
-    // 3) Pick Check-out Date (can be different from check-in date)
-    if (!mounted) return;
-    final checkOutDate = await showDatePicker(
-      context: context,
-      initialDate: _checkOut ?? start,
+  Future<void> _pickCheckOut() async {
+    final now = DateTime.now();
+    final start = _checkIn ?? now;
+    final picked = await _pickDateTime(
+      initial: _checkOut ?? start.add(const Duration(hours: 2)),
       firstDate: start,
       lastDate: now.add(const Duration(days: 90)),
-      builder: (ctx, child) => Theme(
-        data: ThemeData.dark().copyWith(
-          colorScheme: const ColorScheme.dark(
-            primary: Color(0xFFFFD700),
-            onPrimary: Colors.black,
-            surface: Color(0xFF1A1A1A),
-          ),
-        ),
-        child: child!,
-      ),
     );
+    if (picked == null) return;
 
-    if (checkOutDate == null) return;
-
-    // 4) Pick Check-out Time
-    if (!mounted) return;
-    final checkOutTime = await showTimePicker(
-      context: context,
-      initialTime: TimeOfDay.fromDateTime(
-        _checkOut ?? start.add(const Duration(hours: 2)),
-      ),
-      builder: (ctx, child) => Theme(
-        data: ThemeData.dark().copyWith(
-          colorScheme: const ColorScheme.dark(
-            primary: Color(0xFFFFD700),
-            onPrimary: Colors.black,
-            surface: Color(0xFF1A1A1A),
-          ),
-        ),
-        child: child!,
-      ),
-    );
-
-    if (checkOutTime == null) return;
-
-    final end = DateTime(
-      checkOutDate.year,
-      checkOutDate.month,
-      checkOutDate.day,
-      checkOutTime.hour,
-      checkOutTime.minute,
-    );
-
-    if (end.isBefore(start) || end.isAtSameMomentAs(start)) {
+    if (_checkIn != null &&
+        (picked.isBefore(_checkIn!) || picked.isAtSameMomentAs(_checkIn!))) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Thời gian trả phòng phải sau thời gian nhận phòng')),
+          const SnackBar(
+            content: Text('Thời gian trả phòng phải sau thời gian nhận phòng'),
+            behavior: SnackBarBehavior.floating,
+          ),
         );
       }
       return;
     }
 
     setState(() {
-      _checkIn = start;
-      _checkOut = end;
+      _checkOut = picked;
       _clearVoucher();
     });
   }
@@ -200,61 +177,34 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
       return;
     }
 
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
     setState(() {
       _checkingVoucher = true;
       _voucherError = null;
     });
 
     try {
-      final snap = await _firestore
-          .collection('vouchers')
-          .where('code', isEqualTo: code)
-          .where('isActive', isEqualTo: true)
-          .limit(1)
-          .get();
+      final voucher = await VoucherService().validateVoucher(
+        code,
+        hostId: widget.room.hostId,
+        subtotal: _subtotal,
+        userId: user.uid,
+      );
 
-      if (snap.docs.isEmpty) {
-        setState(() => _voucherError = 'Mã giảm giá không hợp lệ hoặc đã hết hạn');
-        return;
-      }
-
-      final doc = snap.docs.first;
-      final data = doc.data();
-
-      // Scope check
-      final scope = data['scope'] as String? ?? 'GLOBAL';
-      if (scope == 'HOST' && data['hostId'] != widget.room.hostId) {
-        setState(() => _voucherError = 'Mã này không áp dụng cho phòng này');
-        return;
-      }
-
-      // Date validity
-      final now = DateTime.now();
-      final startAt = (data['startAt'] as Timestamp?)?.toDate();
-      final endAt = (data['endAt'] as Timestamp?)?.toDate();
-      if (startAt != null && now.isBefore(startAt)) {
-        setState(() => _voucherError = 'Mã chưa có hiệu lực');
-        return;
-      }
-      if (endAt != null && now.isAfter(endAt)) {
-        setState(() => _voucherError = 'Mã đã hết hạn');
-        return;
-      }
-
-      // Min subtotal check
-      final minSubtotal = (data['minSubtotal'] as num?)?.toDouble() ?? 0;
-      if (_subtotal < minSubtotal) {
+      if (voucher == null) {
         setState(() => _voucherError =
-            'Đơn hàng tối thiểu ${FormatUtils.vndCompact(minSubtotal)} để áp dụng mã này');
+            'Mã không hợp lệ/không đủ điều kiện hoặc đã được sử dụng');
         return;
       }
 
-      final discount = _calculateDiscount(data, _subtotal);
+      final discount = voucher.calculateDiscount(_subtotal);
       setState(() {
-        _appliedVoucherId = doc.id;
+        _appliedVoucherId = voucher.id;
         _appliedVoucherCode = code;
-        _appliedVoucherScope = scope;
-        _appliedVoucherHostId = data['hostId'] as String?;
+        _appliedVoucherScope = voucher.scope;
+        _appliedVoucherHostId = voucher.hostId;
         _voucherDiscountAmount = discount;
         _voucherError = null;
       });
@@ -265,23 +215,13 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
     }
   }
 
-  double _calculateDiscount(Map<String, dynamic> v, double subtotal) {
-    final type = v['type'] as String? ?? 'FIXED';
-    final value = (v['value'] as num?)?.toDouble() ?? 0;
-    final maxDiscount = (v['maxDiscount'] as num?)?.toDouble();
-    double discount;
-    if (type == 'PERCENT') {
-      discount = subtotal * value / 100;
-      if (maxDiscount != null) discount = discount.clamp(0, maxDiscount);
-    } else {
-      discount = value;
-    }
-    return discount.clamp(0, subtotal);
-  }
-
   Future<void> _createBooking() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
+    if (widget.room.status != 'available') {
+      _showSnack('Phòng hiện không khả dụng để đặt');
+      return;
+    }
     if (_checkIn == null || _checkOut == null) {
       _showSnack('Vui lòng chọn ngày check-in và check-out');
       return;
@@ -315,7 +255,20 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
             _voucherDiscountAmount > 0 ? _voucherDiscountAmount : null,
       );
 
-      await BookingService().createBooking(booking);
+      final bookingId = await BookingService().createBooking(booking);
+
+      // Mark voucher as redeemed so user can't reuse it after a successful booking creation.
+      if (_appliedVoucherId != null && _appliedVoucherId!.isNotEmpty) {
+        try {
+          await VoucherService().redeemVoucher(
+            voucherId: _appliedVoucherId!,
+            userId: user.uid,
+            bookingId: bookingId,
+          );
+        } catch (_) {
+          // Non-fatal: booking already created; redemption can be retried/handled server-side.
+        }
+      }
 
       if (mounted) {
         _showSnack('Đặt phòng thành công! Chờ xác nhận từ chủ nhà.',
@@ -388,7 +341,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
       backgroundColor: const Color(0xFF111111),
       actions: [
         IconButton(
-          tooltip: 'Thông tin chủ nhà',
+          tooltip: 'Thông tin khách sạn/nhà trọ',
           icon: const Icon(Icons.person_outline, color: Colors.white),
           onPressed: () {
             Navigator.push(
@@ -520,43 +473,100 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
                 fontSize: 16,
                 fontWeight: FontWeight.bold)),
         const SizedBox(height: 8),
-        GestureDetector(
-          onTap: _loadingPrices ? null : _pickDateTimeRange,
-          child: Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: const Color(0xFF1A1A1A),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.white12),
-            ),
-            child: _loadingPrices
-                ? const Center(
-                    child: SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Color(0xFFFFD700))))
-                : Row(
-                    children: [
-                      const Icon(Icons.calendar_today,
-                          color: Color(0xFFFFD700), size: 18),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _checkIn == null
-                            ? const Text(
-                                'Chọn thời gian nhận — trả phòng',
-                                style: TextStyle(color: Colors.white54))
-                            : Text(
-                                '${FormatUtils.dateTimeVi(_checkIn!)}  →  ${FormatUtils.dateTimeVi(_checkOut!)}  ($_hours giờ)',
-                                style: const TextStyle(color: Colors.white)),
-                      ),
-                      const Icon(Icons.chevron_right,
-                          color: Colors.white38, size: 18),
-                    ],
+        Row(
+          children: [
+            Expanded(
+              child: GestureDetector(
+                onTap: _loadingPrices ? null : _pickCheckIn,
+                child: Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1A1A1A),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.white12),
                   ),
-          ),
+                  child: _loadingPrices
+                      ? const Center(
+                          child: SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Color(0xFFFFD700))))
+                      : Row(
+                          children: [
+                            const Icon(Icons.login,
+                                color: Color(0xFFFFD700), size: 18),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: _checkIn == null
+                                  ? const Text('Check-in',
+                                      style:
+                                          TextStyle(color: Colors.white54))
+                                  : Text(
+                                      FormatUtils.dateTimeVi(_checkIn!),
+                                      style: const TextStyle(
+                                          color: Colors.white),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                            ),
+                          ],
+                        ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: GestureDetector(
+                onTap: _loadingPrices ? null : _pickCheckOut,
+                child: Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1A1A1A),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.white12),
+                  ),
+                  child: _loadingPrices
+                      ? const Center(
+                          child: SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Color(0xFFFFD700))))
+                      : Row(
+                          children: [
+                            const Icon(Icons.logout,
+                                color: Color(0xFFFFD700), size: 18),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: _checkOut == null
+                                  ? const Text('Check-out',
+                                      style:
+                                          TextStyle(color: Colors.white54))
+                                  : Text(
+                                      FormatUtils.dateTimeVi(_checkOut!),
+                                      style: const TextStyle(
+                                          color: Colors.white),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                            ),
+                          ],
+                        ),
+                ),
+              ),
+            ),
+          ],
         ),
+        if (_checkIn != null && _checkOut != null) ...[
+          const SizedBox(height: 8),
+          Text(
+            '${FormatUtils.dateTimeVi(_checkIn!)}  →  ${FormatUtils.dateTimeVi(_checkOut!)}  ($_hours giờ)',
+            style: const TextStyle(color: Colors.white54, fontSize: 12),
+          ),
+        ],
       ],
     );
   }
@@ -718,7 +728,10 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
   }
 
   Widget _buildBookButton() {
-    final canBook = _checkIn != null && _checkOut != null && _hours >= 1;
+    final isAvailable = widget.room.status == 'available';
+    final canPickTime = isAvailable;
+    final canBook =
+        isAvailable && _checkIn != null && _checkOut != null && _hours >= 1;
     return SizedBox(
       width: double.infinity,
       child: ElevatedButton(
@@ -740,7 +753,9 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
             : Text(
                 canBook
                     ? 'Đặt phòng — ${FormatUtils.vndCompact(_totalAfterDiscount)}'
-                    : 'Chọn thời gian để đặt phòng',
+                    : (canPickTime
+                        ? 'Chọn thời gian để đặt phòng'
+                        : 'Phòng hiện không khả dụng'),
                 style: const TextStyle(
                     fontWeight: FontWeight.bold, fontSize: 16),
               ),

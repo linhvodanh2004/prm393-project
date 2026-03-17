@@ -4,7 +4,7 @@ class DailyPriceModel {
   final String id; // usually the date string like 'YYYY-MM-DD'
   final String roomId;
   final DateTime date;
-  final double price; // The overridden price for this specific date
+  final double price; // Overridden hourly price for this specific date
   final bool isBlocked; // If true, the room is unavailable on this date
 
   DailyPriceModel({

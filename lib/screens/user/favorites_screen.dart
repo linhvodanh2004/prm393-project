@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../models/room_model.dart';
 import '../../services/favorite_service.dart';
 import 'room_details_screen.dart';
+import '../../utils/format_utils.dart';
 
 class FavoritesScreen extends StatefulWidget {
   const FavoritesScreen({super.key});
@@ -110,9 +111,11 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
               }
 
               final rooms = roomSnap.data ?? [];
-              if (rooms.isEmpty) {
+              final availableRooms =
+                  rooms.where((r) => r.status == 'available').toList();
+              if (availableRooms.isEmpty) {
                 return const Center(
-                    child: Text('Không tìm thấy phòng',
+                    child: Text('Không có phòng khả dụng trong danh sách yêu thích',
                         style: TextStyle(color: Colors.white38)));
               }
 
@@ -122,9 +125,9 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                 onRefresh: () async => setState(() {}),
                 child: ListView.builder(
                   padding: const EdgeInsets.all(12),
-                  itemCount: rooms.length,
+                  itemCount: availableRooms.length,
                   itemBuilder: (_, i) =>
-                      _buildRoomCard(context, rooms[i]),
+                      _buildRoomCard(context, availableRooms[i]),
                 ),
               );
             },
@@ -160,7 +163,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                           height: 180,
                           width: double.infinity,
                           fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => Container(
+                          errorBuilder: (context, error, stackTrace) => Container(
                               height: 180,
                               color: const Color(0xFF2A2A2A),
                               child: const Icon(Icons.broken_image,
@@ -200,7 +203,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                           fontSize: 16)),
                   const SizedBox(height: 4),
                   Text(
-                    '${_formatPrice(room.basePrice)} / đêm',
+                    '${FormatUtils.vnd(room.basePrice)} / giờ',
                     style: const TextStyle(
                         color: Color(0xFFFFD700), fontSize: 14),
                   ),
@@ -213,10 +216,4 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
     );
   }
 
-  String _formatPrice(double price) {
-    if (price >= 1000000) {
-      return '${(price / 1000000).toStringAsFixed(1)}M₫';
-    }
-    return '${(price / 1000).toStringAsFixed(0)}k₫';
-  }
 }

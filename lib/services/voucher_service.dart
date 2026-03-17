@@ -1,9 +1,14 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'dart:math';
 import '../models/voucher_model.dart';
 import '../models/voucher_redemption_model.dart';
 
 class VoucherService {
   final _db = FirebaseFirestore.instance;
+  final _rand = Random.secure();
+
+  static const _alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  // Removed confusing chars: I, O, 0, 1
 
   // ---------- Validation ----------
 
@@ -33,7 +38,21 @@ class VoucherService {
     if (voucher.scope == 'HOST' && voucher.hostId != hostId) return null;
 
     // Min subtotal
-    if (subtotal < voucher.minSubtotal) return null;
+    final requiredByDiscountAmount = () {
+      // Ensure booking value is at least the voucher's discount amount/cap.
+      // Example: FIXED 50,000 => subtotal must be >= 50,000
+      // For PERCENT: if maxDiscount is set, subtotal must be >= maxDiscount
+      if (voucher.type == 'FIXED') return voucher.value;
+      if (voucher.type == 'PERCENT') return voucher.maxDiscount ?? 0.0;
+      return 0.0;
+    }();
+
+    final effectiveMinSubtotal = [
+      voucher.minSubtotal,
+      requiredByDiscountAmount,
+    ].reduce((a, b) => a > b ? a : b);
+
+    if (subtotal < effectiveMinSubtotal) return null;
 
     // Per-user usage limit
     final userUsage = await _db
@@ -71,6 +90,34 @@ class VoucherService {
   }
 
   // ---------- CRUD ----------
+
+  /// Generates a random voucher code and ensures it is unique by checking Firestore.
+  Future<String> generateUniqueVoucherCode({int length = 10}) async {
+    for (int attempt = 0; attempt < 20; attempt++) {
+      final code = List.generate(
+        length,
+        (_) => _alphabet[_rand.nextInt(_alphabet.length)],
+      ).join();
+
+      final exists = await _db
+          .collection('vouchers')
+          .where('code', isEqualTo: code)
+          .limit(1)
+          .get();
+      if (exists.docs.isEmpty) return code;
+    }
+    throw Exception('Không thể tạo mã voucher duy nhất, vui lòng thử lại');
+  }
+
+  /// Creates a voucher and auto-generates a random unique `code` (ignores input code).
+  Future<String> createVoucherWithRandomCode(VoucherModel voucher) async {
+    final code = await generateUniqueVoucherCode();
+    final ref = await _db.collection('vouchers').add({
+      ...voucher.toMap(),
+      'code': code,
+    });
+    return ref.id;
+  }
 
   Future<String> createVoucher(VoucherModel voucher) async {
     final ref = await _db.collection('vouchers').add(voucher.toMap());

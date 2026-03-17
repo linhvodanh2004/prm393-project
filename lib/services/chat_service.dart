@@ -60,6 +60,20 @@ class ChatService {
         );
   }
 
+  /// Total unread messages across all rooms for current user.
+  Stream<int> getTotalUnreadCount() {
+    final currentId = _auth.currentUser?.uid;
+    if (currentId == null) return Stream.value(0);
+
+    return getUserChatRooms().map((rooms) {
+      int total = 0;
+      for (final r in rooms) {
+        total += (r.unreadCounts[currentId] ?? 0);
+      }
+      return total;
+    });
+  }
+
   // Stream messages for a specific room
   Stream<List<MessageModel>> getMessages(String roomId) {
     return _firestore

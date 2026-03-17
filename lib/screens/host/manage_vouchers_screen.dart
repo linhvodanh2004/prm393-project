@@ -163,7 +163,7 @@ class _ManageVouchersScreenState extends State<ManageVouchersScreen> {
                 Switch(
                   value: v.isActive,
                   onChanged: (_) => _toggle(v),
-                  activeColor: const Color(0xFFFFD700),
+                  activeThumbColor: const Color(0xFFFFD700),
                 ),
               ],
             ),
@@ -235,6 +235,7 @@ class _VoucherFormSheetState extends State<_VoucherFormSheet> {
   String _type = 'FIXED';
   DateTime? _endAt;
   bool _saving = false;
+  bool _generatingCode = false;
 
   @override
   void initState() {
@@ -249,6 +250,10 @@ class _VoucherFormSheetState extends State<_VoucherFormSheet> {
         text: (v == null || v.minSubtotal == 0) ? '' : v.minSubtotal.toStringAsFixed(0));
     _type = v?.type ?? 'FIXED';
     _endAt = v?.endAt;
+
+    if (widget.existing == null) {
+      _generateNewCode();
+    }
   }
 
   @override
@@ -258,6 +263,27 @@ class _VoucherFormSheetState extends State<_VoucherFormSheet> {
     _maxDiscountCtrl.dispose();
     _minSubtotalCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _generateNewCode() async {
+    setState(() => _generatingCode = true);
+    try {
+      final code = await _service.generateUniqueVoucherCode();
+      if (!mounted) return;
+      _codeCtrl.text = code;
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Lỗi tạo mã: $e'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _generatingCode = false);
+    }
   }
 
   Future<void> _save() async {
@@ -286,7 +312,7 @@ class _VoucherFormSheetState extends State<_VoucherFormSheet> {
       if (widget.existing != null) {
         await _service.updateVoucher(voucher);
       } else {
-        await _service.createVoucher(voucher);
+        await _service.createVoucherWithRandomCode(voucher);
       }
 
       widget.onSaved();
@@ -324,10 +350,40 @@ class _VoucherFormSheetState extends State<_VoucherFormSheet> {
                     fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 20),
-              _field(_codeCtrl, 'Mã voucher (VD: SUMMER2026)',
-                  validator: (v) => v == null || v.trim().isEmpty
-                      ? 'Vui lòng nhập mã'
-                      : null),
+              Row(
+                children: [
+                  Expanded(
+                    child: _field(
+                      _codeCtrl,
+                      'Mã voucher (tự tạo)',
+                      readOnly: true,
+                      validator: (v) => v == null || v.trim().isEmpty
+                          ? 'Đang tạo mã...'
+                          : null,
+                    ),
+                  ),
+                  if (widget.existing == null) ...[
+                    const SizedBox(width: 10),
+                    IconButton(
+                      tooltip: 'Tạo mã mới',
+                      onPressed: _generatingCode ? null : _generateNewCode,
+                      icon: _generatingCode
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Color(0xFFFFD700),
+                              ),
+                            )
+                          : const Icon(
+                              Icons.refresh,
+                              color: Color(0xFFFFD700),
+                            ),
+                    ),
+                  ],
+                ],
+              ),
               const SizedBox(height: 12),
               Row(
                 children: [
@@ -430,10 +486,12 @@ class _VoucherFormSheetState extends State<_VoucherFormSheet> {
 
   Widget _field(TextEditingController ctrl, String hint,
       {TextInputType? keyboardType,
+      bool readOnly = false,
       String? Function(String?)? validator}) {
     return TextFormField(
       controller: ctrl,
       keyboardType: keyboardType,
+      readOnly: readOnly,
       style: const TextStyle(color: Colors.white),
       decoration: InputDecoration(
         hintText: hint,

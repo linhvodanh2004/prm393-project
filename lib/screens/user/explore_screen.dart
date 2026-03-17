@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../models/room_model.dart';
 import '../../services/favorite_service.dart';
 import 'room_details_screen.dart';
+import '../../utils/format_utils.dart';
 
 class ExploreScreen extends StatefulWidget {
   const ExploreScreen({super.key});
@@ -294,7 +295,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
                   Row(
                     children: [
                       Text(
-                        _formatPrice(room.basePrice),
+                        FormatUtils.vnd(room.basePrice),
                         style: const TextStyle(
                             color: Color(0xFFFFD700), fontSize: 14),
                       ),
@@ -333,12 +334,5 @@ class _ExploreScreenState extends State<ExploreScreen> {
         ),
       ),
     );
-  }
-
-  String _formatPrice(double price) {
-    if (price >= 1000000) {
-      return '${(price / 1000000).toStringAsFixed(1)}M';
-    }
-    return '${(price / 1000).toStringAsFixed(0)}k';
   }
 }
