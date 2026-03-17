@@ -50,6 +50,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
         backgroundColor: const Color(0xFF111111),
         elevation: 0,
         centerTitle: true,
+        iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: StreamBuilder<List<ChatRoomModel>>(
         stream: _chatService.getUserChatRooms(),

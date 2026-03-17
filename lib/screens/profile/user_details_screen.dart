@@ -292,13 +292,10 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Color(0xFFD4A853),
-                              ),
+                            const Icon(
+                              Icons.hourglass_top_rounded,
+                              color: Color(0xFFD4A853),
+                              size: 20,
                             ),
                             const SizedBox(width: 12),
                             const Text(
