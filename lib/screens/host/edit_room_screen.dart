@@ -276,8 +276,8 @@ class _EditRoomScreenState extends State<EditRoomScreen> {
                         Expanded(
                           child: CustomTextField(
                             controller: _priceController,
-                            label: 'Giá / Đêm (VND)',
-                            hint: 'VD: 500000',
+                            label: 'Giá / Giờ (VND)',
+                            hint: 'VD: 50000',
                             prefixIcon: Icons.attach_money,
                             keyboardType: TextInputType.number,
                           ),

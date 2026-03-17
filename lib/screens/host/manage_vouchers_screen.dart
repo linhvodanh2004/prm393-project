@@ -100,6 +100,7 @@ class _ManageVouchersScreenState extends State<ManageVouchersScreen> {
         iconTheme: const IconThemeData(color: Colors.white),
       ),
       floatingActionButton: FloatingActionButton(
+        heroTag: 'manage_vouchers_fab',
         onPressed: () => _openForm(),
         backgroundColor: const Color(0xFFFFD700),
         foregroundColor: Colors.black,
@@ -246,7 +247,7 @@ class _VoucherFormSheetState extends State<_VoucherFormSheet> {
     _maxDiscountCtrl = TextEditingController(
         text: v?.maxDiscount?.toStringAsFixed(0) ?? '');
     _minSubtotalCtrl = TextEditingController(
-        text: v?.minSubtotal == 0 ? '' : v!.minSubtotal.toStringAsFixed(0));
+        text: (v == null || v.minSubtotal == 0) ? '' : v.minSubtotal.toStringAsFixed(0));
     _type = v?.type ?? 'FIXED';
     _endAt = v?.endAt;
   }

@@ -3,7 +3,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../models/room_model.dart';
 import '../../services/favorite_service.dart';
-import '../../widgets/common/notification_badge_icon.dart';
 import 'room_details_screen.dart';
 
 class FavoritesScreen extends StatefulWidget {
@@ -73,7 +72,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
         backgroundColor: const Color(0xFF111111),
         elevation: 0,
         centerTitle: true,
-        actions: const [NotificationBadgeIcon()],
+        automaticallyImplyLeading: false,
       ),
       body: StreamBuilder<List<String>>(
         stream: _favService.streamFavoriteIds(_uid),

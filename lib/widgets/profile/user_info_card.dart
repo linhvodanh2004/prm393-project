@@ -77,13 +77,7 @@ class UserInfoCard extends StatelessWidget {
           _buildInfoRow(Icons.email, 'Email', userData.email ?? fallbackEmail),
           const SizedBox(height: 12),
 
-          // Auth Provider
-          _buildInfoRow(
-            Icons.security,
-            'Phương thức đăng nhập',
-            userData.authProvider,
-          ),
-          const SizedBox(height: 12),
+
 
           // Role (To distinguish Host)
           _buildInfoRow(

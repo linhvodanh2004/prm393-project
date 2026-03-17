@@ -4,9 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import '../../models/room_model.dart';
 import '../../models/booking_model.dart';
-import '../../models/daily_price_model.dart';
 import '../../services/booking_service.dart';
-import '../../services/room_service.dart';
 
 class RoomDetailsScreen extends StatefulWidget {
   final RoomModel room;
@@ -22,7 +20,6 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
   DateTime? _checkIn;
   DateTime? _checkOut;
   int _guestCount = 1;
-  List<DailyPriceModel> _dailyPrices = [];
   bool _loadingPrices = false;
   bool _submitting = false;
   int _imageIndex = 0;
@@ -41,7 +38,6 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
   @override
   void initState() {
     super.initState();
-    _loadDailyPrices();
   }
 
   @override
@@ -51,56 +47,33 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
     super.dispose();
   }
 
-  Future<void> _loadDailyPrices() async {
-    setState(() => _loadingPrices = true);
-    try {
-      _dailyPrices = await RoomService().getDailyPrices(widget.room.id).first;
-    } catch (_) {
-      _dailyPrices = [];
-    }
-    if (mounted) setState(() => _loadingPrices = false);
-  }
 
-  bool _isDateBlocked(DateTime date) {
-    final key = DateFormat('yyyy-MM-dd').format(date);
-    return _dailyPrices.any(
-        (dp) => DateFormat('yyyy-MM-dd').format(dp.date) == key && dp.isBlocked);
-  }
 
-  double _priceForDate(DateTime date) {
-    final key = DateFormat('yyyy-MM-dd').format(date);
-    final overrides = _dailyPrices
-        .where((dp) =>
-            DateFormat('yyyy-MM-dd').format(dp.date) == key && !dp.isBlocked);
-    if (overrides.isNotEmpty) return overrides.first.price;
-    return widget.room.basePrice;
-  }
 
   double get _subtotal {
     if (_checkIn == null || _checkOut == null) return 0;
-    double total = 0;
-    DateTime cur = _checkIn!;
-    while (cur.isBefore(_checkOut!)) {
-      total += _priceForDate(cur);
-      cur = cur.add(const Duration(days: 1));
-    }
-    return total;
+    return _hours * widget.room.basePrice;
   }
 
   double get _totalAfterDiscount =>
       (_subtotal - _voucherDiscountAmount).clamp(0, double.infinity);
 
-  int get _nights {
+  int get _hours {
     if (_checkIn == null || _checkOut == null) return 0;
-    return _checkOut!.difference(_checkIn!).inDays;
+    final diff = _checkOut!.difference(_checkIn!);
+    // Floor rounding: total seconds / 3600
+    return (diff.inSeconds / 3600.0).floor();
   }
 
-  Future<void> _pickDateRange() async {
+  Future<void> _pickDateTimeRange() async {
     final now = DateTime.now();
-    final range = await showDateRangePicker(
+
+    // 1. Pick Date
+    final date = await showDatePicker(
       context: context,
+      initialDate: _checkIn ?? now,
       firstDate: now,
-      lastDate: now.add(const Duration(days: 365)),
+      lastDate: now.add(const Duration(days: 90)),
       builder: (ctx, child) => Theme(
         data: ThemeData.dark().copyWith(
           colorScheme: const ColorScheme.dark(
@@ -111,15 +84,65 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
         ),
         child: child!,
       ),
-      selectableDayPredicate: (day, _, __) => !_isDateBlocked(day),
     );
-    if (range != null) {
-      setState(() {
-        _checkIn = range.start;
-        _checkOut = range.end;
-        _clearVoucher();
-      });
+
+    if (date == null) return;
+
+    // 2. Pick Start Time
+    if (!mounted) return;
+    final startTime = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(_checkIn ?? now),
+      builder: (ctx, child) => Theme(
+        data: ThemeData.dark().copyWith(
+          colorScheme: const ColorScheme.dark(
+            primary: Color(0xFFFFD700),
+            onPrimary: Colors.black,
+            surface: Color(0xFF1A1A1A),
+          ),
+        ),
+        child: child!,
+      ),
+    );
+
+    if (startTime == null) return;
+
+    // 3. Pick End Time
+    if (!mounted) return;
+    final endTime = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(_checkOut ?? now.add(const Duration(hours: 2))),
+      builder: (ctx, child) => Theme(
+        data: ThemeData.dark().copyWith(
+          colorScheme: const ColorScheme.dark(
+            primary: Color(0xFFFFD700),
+            onPrimary: Colors.black,
+            surface: Color(0xFF1A1A1A),
+          ),
+        ),
+        child: child!,
+      ),
+    );
+
+    if (endTime == null) return;
+
+    final start = DateTime(date.year, date.month, date.day, startTime.hour, startTime.minute);
+    final end = DateTime(date.year, date.month, date.day, endTime.hour, endTime.minute);
+
+    if (end.isBefore(start) || end.isAtSameMomentAs(start)) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Thời gian trả phòng phải sau thời gian nhận phòng')),
+        );
+      }
+      return;
     }
+
+    setState(() {
+      _checkIn = start;
+      _checkOut = end;
+      _clearVoucher();
+    });
   }
 
   void _clearVoucher() {
@@ -226,8 +249,8 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
       _showSnack('Vui lòng chọn ngày check-in và check-out');
       return;
     }
-    if (_nights < 1) {
-      _showSnack('Check-out phải sau check-in ít nhất 1 ngày');
+    if (_hours < 1) {
+      _showSnack('Check-out phải sau check-in ít nhất 1 giờ');
       return;
     }
 
@@ -302,7 +325,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
                   _buildDateSelector(),
                   const SizedBox(height: 16),
                   _buildGuestSelector(),
-                  if (_nights > 0) ...[
+                  if (_hours > 0) ...[
                     const SizedBox(height: 16),
                     _buildPriceSummary(),
                     const SizedBox(height: 12),
@@ -388,7 +411,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
                 fontWeight: FontWeight.bold)),
         const SizedBox(height: 4),
         Text(
-          '${_formatPrice(widget.room.basePrice)} / đêm (giá cơ bản)',
+          '${_formatPrice(widget.room.basePrice)} / giờ (giá cơ bản)',
           style: const TextStyle(color: Color(0xFFFFD700), fontSize: 15),
         ),
       ],
@@ -437,14 +460,14 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Chọn ngày',
+        const Text('Chọn thời gian',
             style: TextStyle(
                 color: Colors.white,
                 fontSize: 16,
                 fontWeight: FontWeight.bold)),
         const SizedBox(height: 8),
         GestureDetector(
-          onTap: _loadingPrices ? null : _pickDateRange,
+          onTap: _loadingPrices ? null : _pickDateTimeRange,
           child: Container(
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
@@ -468,10 +491,10 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
                       Expanded(
                         child: _checkIn == null
                             ? const Text(
-                                'Chọn ngày check-in — check-out',
+                                'Chọn thời gian nhận — trả phòng',
                                 style: TextStyle(color: Colors.white54))
                             : Text(
-                                '${_fmt(_checkIn!)}  →  ${_fmt(_checkOut!)}  ($_nights đêm)',
+                                '${_fmtFull(_checkIn!)}  →  ${_fmtFull(_checkOut!)}  ($_hours giờ)',
                                 style: const TextStyle(color: Colors.white)),
                       ),
                       const Icon(Icons.chevron_right,
@@ -519,7 +542,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
       child: Column(
         children: [
           _priceRow(
-              '$_nights đêm × ${_formatPrice(widget.room.basePrice)}',
+              '$_hours giờ × ${_formatPrice(widget.room.basePrice)}',
               _subtotal),
           if (_voucherDiscountAmount > 0)
             _priceRow('Giảm giá ($_appliedVoucherCode)',
@@ -641,7 +664,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
   }
 
   Widget _buildBookButton() {
-    final canBook = _checkIn != null && _checkOut != null && _nights >= 1;
+    final canBook = _checkIn != null && _checkOut != null && _hours >= 1;
     return SizedBox(
       width: double.infinity,
       child: ElevatedButton(
@@ -663,7 +686,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
             : Text(
                 canBook
                     ? 'Đặt phòng — ${_formatPrice(_totalAfterDiscount)}'
-                    : 'Chọn ngày để đặt phòng',
+                    : 'Chọn thời gian để đặt phòng',
                 style: const TextStyle(
                     fontWeight: FontWeight.bold, fontSize: 16),
               ),
@@ -671,7 +694,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
     );
   }
 
-  String _fmt(DateTime d) => DateFormat('dd/MM/yyyy').format(d);
+  String _fmtFull(DateTime d) => DateFormat('dd/MM/yyyy HH:mm').format(d);
 
   String _formatPrice(double price) {
     if (price >= 1000000) {

@@ -38,7 +38,7 @@ class _UserBookingsScreenState extends State<UserBookingsScreen>
   String _fmtCurrency(double price) =>
       NumberFormat.currency(locale: 'vi_VN', symbol: 'đ').format(price);
 
-  String _fmtDate(DateTime d) => DateFormat('dd/MM/yyyy').format(d);
+  String _fmtDate(DateTime d) => DateFormat('dd/MM/yyyy HH:mm').format(d);
 
   Future<void> _startChatWithHost(BookingModel b) async {
     try {
@@ -290,7 +290,7 @@ class _UserBookingsScreenState extends State<UserBookingsScreen>
         backgroundColor: const Color(0xFF111111),
         elevation: 0,
         centerTitle: true,
-        actions: const [NotificationBadgeIcon()],
+        automaticallyImplyLeading: false,
         bottom: TabBar(
           controller: _tabController,
           indicatorColor: const Color(0xFFD4A853),

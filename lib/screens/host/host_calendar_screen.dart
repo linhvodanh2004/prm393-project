@@ -192,7 +192,7 @@ class _HostCalendarScreenState extends State<HostCalendarScreen> {
         backgroundColor: const Color(0xFF111111),
         elevation: 0,
         centerTitle: true,
-        actions: const [NotificationBadgeIcon()],
+        automaticallyImplyLeading: false,
       ),
       body: _isLoadingRooms
           ? const Center(

@@ -6,10 +6,9 @@ class RoomModel {
   final String title;
   final String description;
   final List<String> images;
-  final double basePrice;
-  // 'available' | 'maintenance' | 'unavailable' | 'pending_review'
-  final String status;
-  final int quantity;
+  final double basePrice; // Price per hour (VND)
+  final String status; // 'available', 'maintenance', 'unavailable'
+  final int quantity; // Total units of this room type
   final List<String> amenities;
   final DateTime createdAt;
   final DateTime updatedAt;

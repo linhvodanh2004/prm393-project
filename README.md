@@ -1,7 +1,7 @@
 # prm393_project (Flutter + Firebase)
 
 ## TL;DR
-- **What**: Flutter mobile app for room discovery + booking, with role-based flows (User / Host / Admin).
+- **What**: Flutter mobile app for room discovery + booking by hour, with role-based flows (User / Host / Admin).
 - **Backend**: Firebase (Auth + Firestore + Messaging). Optional supporting services: Cloudinary, Google Maps.
 - **Docs**: Detailed setup lives in `SETUP.md`.
 
@@ -129,7 +129,7 @@ This project currently has two room shapes in code history; the actively used se
   "title": "string",
   "description": "string",
   "images": ["string"],
-  "basePrice": 100000.0,
+  "basePrice": 100000.0, // price per hour
   "status": "available|maintenance|unavailable",
   "quantity": 1,
   "amenities": ["wifi", "pool"],
@@ -157,8 +157,8 @@ This project currently has two room shapes in code history; the actively used se
   "userName": "string",
   "hostId": "string",
 
-  "checkIn": "Timestamp",
-  "checkOut": "Timestamp",
+  "checkIn": "Timestamp", // with time precision
+  "checkOut": "Timestamp", // with time precision
   "guestCount": 2,
   "totalPrice": 240000.0,
   "status": "pending|confirmed|rejected|paid|completed|cancelled",
@@ -315,14 +315,14 @@ This section is intentionally written in a structured way for easy retrieval.
 
 - **Explore & Search**
   - **Homepage**: featured rooms + nearby rooms + categories
-  - **Advanced search**: name, location, price range, guest count, check-in/out dates
+  - **Advanced search**: name, location, price range, guest count, check-in/out times
   - **Filters**: price sort, rating, amenities (wifi, pool, air conditioning, …)
   - **Map search**: Google Maps-based discovery
 
 - **Room details & Booking**
   - **Details**: image carousel, description, rules, reviews
-  - **Availability**: calendar + dynamic daily pricing
-  - **Booking flow**: total calculation + discount code/voucher + user info confirmation
+  - **Availability**: calendar-based selection with hour precision
+  - **Booking flow**: total calculation based on floor-rounded hours + discount code/voucher + user info confirmation
   - **Status tracking**: Pending → Confirmed → Completed/Cancelled
 
 - **Payment & Account**
@@ -334,7 +334,7 @@ This section is intentionally written in a structured way for easy retrieval.
 ### Host
 - **Room management**: create/edit/delete rooms; bulk update images/prices/status
 - **Booking operations**: review guest requests; confirm/reject; direct chat
-- **Calendar controls**: block/unblock dates; seasonal/period pricing
+- **Calendar controls**: block/unblock slots; seasonal/period pricing
 - **Revenue reports**: monthly/yearly stats; export report file
 - **Voucher management (host-scoped)**:
   - Host-created vouchers can be applied to **any booking for that host’s rooms**.

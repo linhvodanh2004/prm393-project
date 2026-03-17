@@ -13,12 +13,12 @@ class RoomService {
     return _firestore
         .collection('rooms')
         .where('hostId', isEqualTo: hostId)
-        .orderBy('createdAt', descending: true)
         .snapshots()
         .map(
           (snapshot) => snapshot.docs
               .map((doc) => RoomModel.fromMap(doc.data(), doc.id))
-              .toList(),
+              .toList()
+            ..sort((a, b) => b.createdAt.compareTo(a.createdAt)),
         );
   }
 

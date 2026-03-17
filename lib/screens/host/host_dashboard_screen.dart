@@ -1,11 +1,10 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
 
 import '../../models/booking_model.dart';
 import '../../services/revenue_service.dart';
-import '../../widgets/common/notification_badge_icon.dart';
 
 class HostDashboardScreen extends StatefulWidget {
   const HostDashboardScreen({super.key});
@@ -54,7 +53,7 @@ class _HostDashboardScreenState extends State<HostDashboardScreen> {
         backgroundColor: const Color(0xFF111111),
         elevation: 0,
         centerTitle: true,
-        actions: const [NotificationBadgeIcon()],
+        automaticallyImplyLeading: false,
       ),
       body: StreamBuilder<List<BookingModel>>(
         stream: _revenueService.getPaidBookings(_hostId!),

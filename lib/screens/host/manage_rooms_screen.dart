@@ -4,8 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import '../../models/room_model.dart';
 import '../../services/room_service.dart';
-import 'edit_room_screen.dart'; // We will create this next
-import '../../widgets/common/notification_badge_icon.dart';
+import 'edit_room_screen.dart';
 
 class ManageRoomsScreen extends StatefulWidget {
   const ManageRoomsScreen({super.key});
@@ -140,9 +139,10 @@ class _ManageRoomsScreenState extends State<ManageRoomsScreen> {
         backgroundColor: const Color(0xFF111111),
         elevation: 0,
         centerTitle: true,
-        actions: const [NotificationBadgeIcon()],
+        automaticallyImplyLeading: false,
       ),
       floatingActionButton: FloatingActionButton(
+        heroTag: 'manage_rooms_fab',
         onPressed: _navigateToAddRoom,
         backgroundColor: const Color(0xFFD4A853),
         child: const Icon(Icons.add, color: Colors.black),
@@ -247,13 +247,24 @@ class _ManageRoomsScreenState extends State<ManageRoomsScreen> {
                                 overflow: TextOverflow.ellipsis,
                               ),
                               const SizedBox(height: 4),
-                              Text(
-                                '${_formatPrice(room.basePrice)} / đêm',
-                                style: const TextStyle(
-                                  color: Color(0xFFD4A853),
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                ),
+                              Row(
+                                children: [
+                                  Text(
+                                    _formatPrice(room.basePrice),
+                                    style: const TextStyle(
+                                      color: Color(0xFFD4A853),
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  const Text(
+                                    ' / giờ',
+                                    style: TextStyle(
+                                      color: Colors.white54,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ],
                               ),
                               const SizedBox(height: 8),
                               Row(

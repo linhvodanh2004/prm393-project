@@ -52,7 +52,7 @@ flutter test
 3. **Kiểm thử thủ công nhanh trên simulator/emulator**
    - Đăng nhập bằng **USER**, kiểm tra:
      - Khám phá phòng (ExploreScreen): lọc, tìm kiếm.
-     - Xem chi tiết phòng: ảnh, mô tả, tiện ích, giá theo ngày.
+     - Xem chi tiết phòng: ảnh, mô tả, tiện ích, giá theo giờ.
      - Tạo 1 booking mới (không voucher và có voucher).
    - Đăng nhập bằng **HOST**, kiểm tra:
      - Nhận booking, **confirm / reject / completed**.
@@ -79,8 +79,8 @@ flutter test
   - Tìm phòng theo tên, lọc theo tiện ích, giá.
   - Thêm/bỏ **Yêu thích** (FavoritesScreen hiển thị đúng).
 - **Đặt phòng**
-  - Chọn ngày check-in/check-out, số khách.
-  - Giá tổng = tổng giá từng ngày (kiểm tra ngày có daily_price và không có).
+  - Chọn thời gian nhận/trả phòng (giờ), số khách.
+  - Giá tổng = số giờ (floor rounded) × giá mỗi giờ.
   - Tạo booking **không dùng voucher**.
   - Tạo booking **dùng voucher HOST** (phòng thuộc host A).
   - Tạo booking **dùng voucher GLOBAL**.

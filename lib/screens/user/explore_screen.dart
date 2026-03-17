@@ -3,7 +3,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../models/room_model.dart';
 import '../../services/favorite_service.dart';
-import '../../widgets/common/notification_badge_icon.dart';
 import 'room_details_screen.dart';
 
 class ExploreScreen extends StatefulWidget {
@@ -81,7 +80,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
         backgroundColor: const Color(0xFF111111),
         elevation: 0,
         centerTitle: true,
-        actions: const [NotificationBadgeIcon()],
+        automaticallyImplyLeading: false,
       ),
       body: Column(
         children: [
@@ -292,10 +291,21 @@ class _ExploreScreenState extends State<ExploreScreen> {
                           fontWeight: FontWeight.bold,
                           fontSize: 16)),
                   const SizedBox(height: 4),
-                  Text(
-                    '${_formatPrice(room.basePrice)} / đêm',
-                    style: const TextStyle(
-                        color: Color(0xFFFFD700), fontSize: 14),
+                  Row(
+                    children: [
+                      Text(
+                        _formatPrice(room.basePrice),
+                        style: const TextStyle(
+                            color: Color(0xFFFFD700), fontSize: 14),
+                      ),
+                      Text(
+                        ' / giờ',
+                        style: TextStyle(
+                          color: Colors.white.withOpacity(0.6),
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
                   ),
                   if (room.amenities.isNotEmpty) ...[
                     const SizedBox(height: 8),

@@ -38,7 +38,7 @@ class _HostBookingsScreenState extends State<HostBookingsScreen>
   String _fmtCurrency(double p) =>
       NumberFormat.currency(locale: 'vi_VN', symbol: 'đ').format(p);
 
-  String _fmtDate(DateTime d) => DateFormat('dd/MM/yyyy').format(d);
+  String _fmtDate(DateTime d) => DateFormat('dd/MM/yyyy HH:mm').format(d);
 
   Future<void> _confirmAction(
       BookingModel b, String newStatus, String label) async {
@@ -368,7 +368,7 @@ class _HostBookingsScreenState extends State<HostBookingsScreen>
         backgroundColor: const Color(0xFF111111),
         elevation: 0,
         centerTitle: true,
-        actions: const [NotificationBadgeIcon()],
+        automaticallyImplyLeading: false,
         bottom: TabBar(
           controller: _tabController,
           indicatorColor: const Color(0xFFD4A853),
