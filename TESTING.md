@@ -44,7 +44,7 @@ flutter test
 1. **Viết / cập nhật unit test (nếu có)**
    - BookingService (trạng thái, double-booking).
    - VoucherService (scope HOST/GLOBAL, minSubtotal, usage limit).
-   - Validator (email, CCCD, số điện thoại…).
+   - Validator (email, số điện thoại…).
 
 2. **Chạy `flutter test`**
    - PR **không được merge** nếu test đang fail.
@@ -92,8 +92,11 @@ flutter test
 #### Host
 
 - **Become Host**
-  - Gửi yêu cầu với CCCD/CMND hợp lệ (9 hoặc 12 số).
-  - Khi status `pending` thì form bị khóa, chỉ hiển thị trạng thái.
+  - Điền đầy đủ thông tin: tên cơ sở, mô tả, năm bắt đầu, loại hình kinh doanh.
+  - Nếu chọn **Doanh nghiệp** → bắt buộc nhập Mã số thuế.
+  - Nhấn gửi → hiển thị popup **Điều khoản đối tác**.
+  - Tick checkbox đồng ý → nút "Xác nhận & Gửi" mới được bấm.
+  - Sau khi gửi thành công → form chuyển sang trạng thái `pending`, không cho sửa.
 - **Quản lý phòng**
   - Tạo phòng mới, chỉnh sửa phòng, cập nhật hình ảnh/giá.
   - Thử xóa phòng:

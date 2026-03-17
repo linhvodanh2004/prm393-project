@@ -23,6 +23,10 @@ import '../admin/admin_payments_screen.dart';
 // Voucher Screens (shared)
 import '../host/manage_vouchers_screen.dart';
 
+// Notification Screen
+import '../notifications/notification_screen.dart';
+
+
 class HomeScreen extends StatefulWidget {
   final UserModel userModel;
 
@@ -64,8 +68,30 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: const Color.fromARGB(255, 198, 94, 4),
-        title: Text('Chào, ${widget.userModel.name}'),
+        backgroundColor: const Color(0xFF111111),
+        elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.chat_bubble_outline, color: Colors.white),
+            tooltip: 'Tin nhắn',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const ChatListScreen()),
+              );
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.notifications_outlined, color: Colors.white),
+            tooltip: 'Thông báo',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const NotificationScreen()),
+              );
+            },
+          ),
+        ],
       ),
       backgroundColor: const Color(0xFF0D0D0D),
       body: IndexedStack(
@@ -121,7 +147,6 @@ class _HomeScreenState extends State<HomeScreen> {
           ExploreScreen(),
           FavoritesScreen(),
           UserBookingsScreen(),
-          ChatListScreen(),
           UserDetailsScreen(),
         ];
     }
@@ -214,11 +239,6 @@ class _HomeScreenState extends State<HomeScreen> {
             icon: Icon(Icons.airplane_ticket_outlined),
             activeIcon: Icon(Icons.airplane_ticket),
             label: 'Chuyến đi',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.chat_bubble_outline),
-            activeIcon: Icon(Icons.chat_bubble_rounded),
-            label: 'Tin nhắn',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.person_outline),

@@ -336,14 +336,37 @@ class _ManageUsersScreenState extends State<ManageUsersScreen>
                     fontWeight: FontWeight.bold,
                     fontSize: 15)),
             const SizedBox(height: 4),
-            Text('CCCD: ${req.citizenId}',
-                style: const TextStyle(color: Colors.white54, fontSize: 13)),
+            Text(
+              'Loại hình: ${req.businessType == 'business' ? 'Doanh nghiệp' : 'Cá nhân'}',
+              style: const TextStyle(color: Colors.white54, fontSize: 13),
+            ),
+            Text(
+              'Năm bắt đầu: ${req.businessStartYear}',
+              style: const TextStyle(color: Colors.white54, fontSize: 13),
+            ),
+            if (req.taxCode != null && req.taxCode!.isNotEmpty)
+              Text(
+                'MST: ${req.taxCode}',
+                style: const TextStyle(color: Colors.white54, fontSize: 13),
+              ),
             Text('SĐT: ${req.phone}',
                 style:
                     const TextStyle(color: Colors.white54, fontSize: 13)),
             Text('Địa chỉ: ${req.address}',
                 style:
                     const TextStyle(color: Colors.white54, fontSize: 13)),
+            if (req.description.isNotEmpty) ...[
+              const SizedBox(height: 6),
+              Text(
+                req.description,
+                style: const TextStyle(
+                    color: Colors.white38,
+                    fontSize: 12,
+                    fontStyle: FontStyle.italic),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
             const SizedBox(height: 12),
             Row(
               children: [

@@ -52,9 +52,9 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> {
       HostRequestModel? currentRequest;
 
       if (data != null) {
-        if (data.role == 'host') {
+        if (data.role.toUpperCase() == 'HOST') {
           property = await _propertyService.getPropertyByHost(data.uid).first;
-        } else if (data.role == 'user') {
+        } else if (data.role.toUpperCase() == 'USER') {
           final requests = await _hostRequestService
               .getUserRequests(data.uid)
               .first;

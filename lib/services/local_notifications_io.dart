@@ -2,7 +2,8 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'local_notifications.dart';
 
 class _IoLocalNotifications implements LocalNotifications {
-  final FlutterLocalNotificationsPlugin _plugin = FlutterLocalNotificationsPlugin();
+  final FlutterLocalNotificationsPlugin _plugin =
+      FlutterLocalNotificationsPlugin();
   bool _initialized = false;
 
   @override
@@ -11,22 +12,25 @@ class _IoLocalNotifications implements LocalNotifications {
     const initAndroid = AndroidInitializationSettings('@mipmap/ic_launcher');
     const initSettings = InitializationSettings(android: initAndroid);
 
-    // Keep this positional to match the plugin API on mobile.
-    await _plugin.initialize(initSettings);
+    await _plugin.initialize(settings: initSettings);
     _initialized = true;
   }
 
   @override
-  Future<void> show({required int id, required String title, String? body}) async {
+  Future<void> show({
+    required int id,
+    required String title,
+    String? body,
+  }) async {
     if (!_initialized) {
       await init();
     }
 
     await _plugin.show(
-      id,
-      title,
-      body,
-      const NotificationDetails(
+      id: id,
+      title: title,
+      body: body,
+      notificationDetails: const NotificationDetails(
         android: AndroidNotificationDetails(
           'channel_id_main',
           'Main Channel',
@@ -41,4 +45,3 @@ class _IoLocalNotifications implements LocalNotifications {
 }
 
 LocalNotifications createLocalNotificationsImpl() => _IoLocalNotifications();
-

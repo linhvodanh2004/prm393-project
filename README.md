@@ -271,13 +271,18 @@ Recommended for enforcing per-user limits without scanning all bookings.
   "userId": "string",
   "businessName": "string",
   "phone": "string",
-  "citizenId": "string",
   "address": "string",
+  "description": "string",
+  "businessStartYear": 2020,
+  "businessType": "private|business",
+  "taxCode": "string?",
   "status": "pending|approved|rejected",
   "note": "string?",
   "createdAt": "Timestamp"
 }
 ```
+
+> `taxCode` is required only when `businessType == "business"`. Omitted (null) for private/individual operators.
 
 `properties/{hostId}`:
 ```json
