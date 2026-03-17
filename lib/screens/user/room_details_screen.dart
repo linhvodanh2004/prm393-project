@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../../models/room_model.dart';
 import '../../models/booking_model.dart';
 import '../../services/booking_service.dart';
+import '../../services/property_service.dart';
 import '../../services/voucher_service.dart';
 import '../../utils/format_utils.dart';
 import '../profile/host_public_profile_screen.dart';
@@ -16,6 +17,7 @@ class RoomDetailsScreen extends StatefulWidget {
 }
 
 class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
+  final _propertyService = PropertyService();
   DateTime? _checkIn;
   DateTime? _checkOut;
   int _guestCount = 1;
@@ -418,8 +420,32 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
                 fontWeight: FontWeight.bold)),
         const SizedBox(height: 4),
         Text(
-          '${FormatUtils.vndCompact(widget.room.basePrice)} / giờ (giá cơ bản)',
+          '${FormatUtils.vnd(widget.room.basePrice)} / giờ (giá cơ bản)',
           style: const TextStyle(color: Color(0xFFFFD700), fontSize: 15),
+        ),
+        const SizedBox(height: 8),
+        StreamBuilder(
+          stream: _propertyService.getPropertyByHost(widget.room.hostId),
+          builder: (context, snap) {
+            final p = snap.data;
+            final address = (p?.address ?? '').trim();
+            if (address.isEmpty) return const SizedBox.shrink();
+            return Row(
+              children: [
+                const Icon(Icons.location_on_outlined,
+                    size: 16, color: Colors.white38),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    address,
+                    style: const TextStyle(color: Colors.white60, fontSize: 13),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            );
+          },
         ),
       ],
     );
@@ -606,7 +632,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
       child: Column(
         children: [
           _priceRow(
-              '$_hours giờ × ${FormatUtils.vndCompact(widget.room.basePrice)}',
+              '$_hours giờ × ${FormatUtils.vnd(widget.room.basePrice)}',
               _subtotal),
           if (_voucherDiscountAmount > 0)
             _priceRow('Giảm giá ($_appliedVoucherCode)',
@@ -633,7 +659,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
           Text(label,
               style: style ?? TextStyle(color: color ?? Colors.white70)),
           Text(
-            '${amount < 0 ? '-' : ''}${FormatUtils.vndCompact(amount.abs())}',
+            '${amount < 0 ? '-' : ''}${FormatUtils.vnd(amount.abs())}',
             style: style ?? TextStyle(color: color ?? Colors.white),
           ),
         ],
@@ -752,7 +778,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
                     strokeWidth: 2, color: Colors.black))
             : Text(
                 canBook
-                    ? 'Đặt phòng — ${FormatUtils.vndCompact(_totalAfterDiscount)}'
+                    ? 'Đặt phòng — ${FormatUtils.vnd(_totalAfterDiscount)}'
                     : (canPickTime
                         ? 'Chọn thời gian để đặt phòng'
                         : 'Phòng hiện không khả dụng'),

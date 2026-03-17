@@ -470,8 +470,12 @@ class _HostPublicProfileScreenState extends State<HostPublicProfileScreen> {
                                   maxLines: 2,
                                   overflow: TextOverflow.ellipsis,
                                 ),
-                                if (address.trim().isNotEmpty)
-                                  _infoRow(Icons.location_on_outlined, address),
+                                _infoRow(
+                                  Icons.location_on_outlined,
+                                  address.trim().isNotEmpty
+                                      ? address
+                                      : 'Chưa cập nhật địa chỉ',
+                                ),
                                 if (desc.isNotEmpty)
                                   _infoRow(Icons.info_outline, desc),
                                 const SizedBox(height: 10),

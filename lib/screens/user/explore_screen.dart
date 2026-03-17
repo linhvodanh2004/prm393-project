@@ -21,6 +21,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
   double? _maxPrice;
   String? _uid;
   Set<String> _favoriteIds = {};
+  final Map<String, String> _hostAddressCache = {};
 
   @override
   void initState() {
@@ -48,6 +49,20 @@ class _ExploreScreenState extends State<ExploreScreen> {
   void dispose() {
     _searchController.dispose();
     super.dispose();
+  }
+
+  Future<String?> _getHostAddress(String hostId) async {
+    final cached = _hostAddressCache[hostId];
+    if (cached != null) return cached;
+    final doc =
+        await FirebaseFirestore.instance.collection('properties').doc(hostId).get();
+    final data = doc.data();
+    final address = (data?['address'] ?? '').toString().trim();
+    if (address.isNotEmpty) {
+      _hostAddressCache[hostId] = address;
+      return address;
+    }
+    return null;
   }
 
   Stream<List<RoomModel>> _buildRoomStream() {
@@ -242,7 +257,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
                       height: 180,
                       width: double.infinity,
                       fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Container(
+                      errorBuilder: (context, error, stackTrace) => Container(
                         height: 180,
                         color: const Color(0xFF2A2A2A),
                         child: const Icon(Icons.image_not_supported,
@@ -291,6 +306,34 @@ class _ExploreScreenState extends State<ExploreScreen> {
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
                           fontSize: 16)),
+                  FutureBuilder<String?>(
+                    future: _getHostAddress(room.hostId),
+                    builder: (context, snap) {
+                      final address = (snap.data ?? '').trim();
+                      if (address.isEmpty) return const SizedBox.shrink();
+                      return Padding(
+                        padding: const EdgeInsets.only(top: 6),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.location_on_outlined,
+                                size: 14, color: Colors.white38),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                address,
+                                style: const TextStyle(
+                                  color: Colors.white60,
+                                  fontSize: 12,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
                   const SizedBox(height: 4),
                   Row(
                     children: [
@@ -302,7 +345,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
                       Text(
                         ' / giờ',
                         style: TextStyle(
-                          color: Colors.white.withOpacity(0.6),
+                          color: Colors.white.withValues(alpha: 0.6),
                           fontSize: 12,
                         ),
                       ),
