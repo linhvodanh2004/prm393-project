@@ -51,9 +51,11 @@ class AuthService {
       );
       if (result.user != null) {
         final userModel = await getUserData(result.user!.uid);
-        if (userModel != null) {
-          await saveUserLocally(userModel);
+        if (userModel != null && !userModel.isActive) {
+          await signOut();
+          throw Exception('Tài khoản của bạn đã bị khóa');
         }
+        if (userModel != null) await saveUserLocally(userModel);
         await FcmService().saveTokenAfterLogin(result.user!.uid);
       }
       return result.user;
@@ -151,6 +153,10 @@ class AuthService {
               .set(userDTO.toFirestore());
         } else {
           final userModel = UserModel.fromFirestore(userDoc);
+          if (!userModel.isActive) {
+            await signOut();
+            throw Exception('Tài khoản của bạn đã bị khóa');
+          }
           await saveUserLocally(userModel);
         }
         await FcmService().saveTokenAfterLogin(result.user!.uid);

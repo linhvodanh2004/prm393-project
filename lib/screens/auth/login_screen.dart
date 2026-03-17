@@ -72,13 +72,22 @@ class _LoginScreenState extends State<LoginScreen>
       _errorMessage = null;
       _isLoading = true;
     });
-    final user = await _authService.signIn(
-      _emailController.text.trim(),
-      _passwordController.text.trim(),
-    );
-    setState(() => _isLoading = false);
-    if (user == null) {
-      setState(() => _errorMessage = 'Email hoặc mật khẩu không chính xác.');
+    try {
+      final user = await _authService.signIn(
+        _emailController.text.trim(),
+        _passwordController.text.trim(),
+      );
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      if (user == null) {
+        setState(() => _errorMessage = 'Email hoặc mật khẩu không chính xác.');
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+        _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      });
     }
   }
 
@@ -87,10 +96,19 @@ class _LoginScreenState extends State<LoginScreen>
       _errorMessage = null;
       _isLoading = true;
     });
-    final user = await _authService.signInWithGoogle();
-    setState(() => _isLoading = false);
-    if (user == null) {
-      setState(() => _errorMessage = 'Đăng nhập Google thất bại hoặc bị huỷ.');
+    try {
+      final user = await _authService.signInWithGoogle();
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      if (user == null) {
+        setState(() => _errorMessage = 'Đăng nhập Google thất bại hoặc bị huỷ.');
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+        _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      });
     }
   }
 

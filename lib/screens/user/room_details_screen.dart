@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../models/room_model.dart';
 import '../../models/booking_model.dart';
+import '../../models/daily_price_model.dart';
 import '../../services/booking_service.dart';
 import '../../services/property_service.dart';
+import '../../services/room_service.dart';
 import '../../services/voucher_service.dart';
 import '../../utils/format_utils.dart';
 import '../profile/host_public_profile_screen.dart';
@@ -18,10 +20,15 @@ class RoomDetailsScreen extends StatefulWidget {
 
 class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
   final _propertyService = PropertyService();
+  final _roomService = RoomService();
   DateTime? _checkIn;
   DateTime? _checkOut;
   int _guestCount = 1;
-  final bool _loadingPrices = false;
+  bool _loadingPrices = false;
+  bool _hasBlockedSlot = false;
+  String? _pricingError;
+  double _calculatedSubtotal = 0;
+  int _calculatedHours = 0;
   bool _submitting = false;
   int _imageIndex = 0;
   final PageController _pageController = PageController();
@@ -51,19 +58,100 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
 
 
 
-  double get _subtotal {
-    if (_checkIn == null || _checkOut == null) return 0;
-    return _hours * widget.room.basePrice;
-  }
+  double get _subtotal => _calculatedSubtotal;
 
   double get _totalAfterDiscount =>
       (_subtotal - _voucherDiscountAmount).clamp(0, double.infinity);
 
-  int get _hours {
-    if (_checkIn == null || _checkOut == null) return 0;
-    final diff = _checkOut!.difference(_checkIn!);
-    // Floor rounding: total seconds / 3600
-    return (diff.inSeconds / 3600.0).floor();
+  int get _hours => _calculatedHours;
+
+  DateTime _normalizeDate(DateTime d) => DateTime(d.year, d.month, d.day);
+
+  Future<void> _recalculatePricing() async {
+    if (_checkIn == null || _checkOut == null) {
+      setState(() {
+        _calculatedSubtotal = 0;
+        _calculatedHours = 0;
+        _hasBlockedSlot = false;
+        _pricingError = null;
+        _loadingPrices = false;
+      });
+      return;
+    }
+
+    if (!_checkOut!.isAfter(_checkIn!)) {
+      setState(() {
+        _calculatedSubtotal = 0;
+        _calculatedHours = 0;
+        _hasBlockedSlot = false;
+        _pricingError = 'Thời gian trả phòng phải sau thời gian nhận phòng';
+        _loadingPrices = false;
+      });
+      return;
+    }
+
+    final hourCount = _checkOut!.difference(_checkIn!).inSeconds ~/ 3600;
+    if (hourCount < 1) {
+      setState(() {
+        _calculatedSubtotal = 0;
+        _calculatedHours = 0;
+        _hasBlockedSlot = false;
+        _pricingError = 'Check-out phải sau check-in ít nhất 1 giờ';
+        _loadingPrices = false;
+      });
+      return;
+    }
+
+    setState(() {
+      _loadingPrices = true;
+      _pricingError = null;
+      _hasBlockedSlot = false;
+    });
+
+    try {
+      final overrides = await _roomService.getDailyPricesInRange(
+        widget.room.id,
+        _checkIn!,
+        _checkOut!,
+      );
+      final mapByDay = <DateTime, DailyPriceModel>{
+        for (final o in overrides) _normalizeDate(o.date): o,
+      };
+
+      double total = 0;
+      bool blocked = false;
+
+      for (int i = 0; i < hourCount; i++) {
+        final slotStart = _checkIn!.add(Duration(hours: i));
+        final dayKey = _normalizeDate(slotStart);
+        final o = mapByDay[dayKey];
+        if (o?.isBlocked == true) {
+          blocked = true;
+          break;
+        }
+        total += o?.price ?? widget.room.basePrice;
+      }
+
+      if (!mounted) return;
+      setState(() {
+        _calculatedHours = hourCount;
+        _calculatedSubtotal = blocked ? 0 : total;
+        _hasBlockedSlot = blocked;
+        _pricingError = blocked
+            ? 'Khoảng thời gian chọn có ngày đang bị khóa, vui lòng chọn thời gian khác'
+            : null;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _calculatedSubtotal = 0;
+        _calculatedHours = 0;
+        _hasBlockedSlot = false;
+        _pricingError = 'Không thể tải giá theo ngày, vui lòng thử lại';
+      });
+    } finally {
+      if (mounted) setState(() => _loadingPrices = false);
+    }
   }
 
   Future<DateTime?> _pickDateTime({
@@ -130,6 +218,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
       }
       _clearVoucher();
     });
+    await _recalculatePricing();
   }
 
   Future<void> _pickCheckOut() async {
@@ -159,6 +248,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
       _checkOut = picked;
       _clearVoucher();
     });
+    await _recalculatePricing();
   }
 
   void _clearVoucher() {
@@ -230,6 +320,15 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
     }
     if (_hours < 1) {
       _showSnack('Check-out phải sau check-in ít nhất 1 giờ');
+      return;
+    }
+    if (_hasBlockedSlot) {
+      _showSnack(
+          'Khoảng thời gian chọn có ngày đang bị khóa, không thể đặt phòng');
+      return;
+    }
+    if (_pricingError != null) {
+      _showSnack(_pricingError!);
       return;
     }
 
@@ -592,6 +691,13 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
             '${FormatUtils.dateTimeVi(_checkIn!)}  →  ${FormatUtils.dateTimeVi(_checkOut!)}  ($_hours giờ)',
             style: const TextStyle(color: Colors.white54, fontSize: 12),
           ),
+          if (_pricingError != null) ...[
+            const SizedBox(height: 6),
+            Text(
+              _pricingError!,
+              style: const TextStyle(color: Colors.redAccent, fontSize: 12),
+            ),
+          ],
         ],
       ],
     );
@@ -757,7 +863,13 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
     final isAvailable = widget.room.status == 'available';
     final canPickTime = isAvailable;
     final canBook =
-        isAvailable && _checkIn != null && _checkOut != null && _hours >= 1;
+        isAvailable &&
+            !_loadingPrices &&
+            !_hasBlockedSlot &&
+            _pricingError == null &&
+            _checkIn != null &&
+            _checkOut != null &&
+            _hours >= 1;
     return SizedBox(
       width: double.infinity,
       child: ElevatedButton(
@@ -779,9 +891,13 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
             : Text(
                 canBook
                     ? 'Đặt phòng — ${FormatUtils.vnd(_totalAfterDiscount)}'
-                    : (canPickTime
+                    : (_loadingPrices
+                        ? 'Đang tính giá...'
+                        : _hasBlockedSlot
+                            ? 'Khoảng thời gian bị khóa'
+                            : (canPickTime
                         ? 'Chọn thời gian để đặt phòng'
-                        : 'Phòng hiện không khả dụng'),
+                        : 'Phòng hiện không khả dụng')),
                 style: const TextStyle(
                     fontWeight: FontWeight.bold, fontSize: 16),
               ),
