@@ -15,26 +15,14 @@
 
 ## Project Structure
 
-models
-- Firestore data models
+High-signal folders in `lib/`:
 
-dtos
-- API / request response objects
-
-services
-- Firebase interaction
-- Cloudinary upload
-- booking logic
-
-screens
-- UI pages
-
-widgets
-- reusable UI components
-
-utils
-- helpers
-- constants
+- **`models/`**: Firestore data models (booking, room, chat, voucher, …)
+- **`DTOs/`**: DTOs for auth/flows (e.g. register)
+- **`services/`**: Firebase interaction (Auth/Firestore/FCM/Chat/Booking/Voucher/Room)
+- **`screens/`**: UI pages (Auth / User / Host / Admin)
+- **`widgets/`**: reusable UI components
+- **`utils/`**: helpers (e.g. `FormatUtils`)
 
 ## Table of Contents
 - [Quickstart](#quickstart)
@@ -64,9 +52,7 @@ flutter run
 - **Notifications**: Firebase Cloud Messaging + local notifications
 - **Maps**: Google Maps API (integration)
 - **Media**: Cloudinary (image hosting)
-- **Payments**:
-  - **COD**: current (enabled)
-  - **VNPay / Credit Card**: planned (not fully enabled yet)
+- **Payments**: COD (basic flow in UI; online payments are not implemented in the current codebase)
 
 ## Repository Structure
 Top-level layout (high-signal directories/files):
@@ -95,8 +81,6 @@ This section describes the **minimum required** Firestore collections/fields bas
 - **`messages/{messageId}`**: chat messages.
 - **`host_requests/{requestId}`**: requests to become a host.
 - **`properties/{hostId}`**: host property profile (stored as a doc keyed by `hostId`).
-- **`orders/{orderId}`**: legacy/alternate booking/payment entity (used by `room_details_screen.dart`).
-- **`daily_prices/{roomId_yyyy-MM-dd}`**: alternate daily price storage (used by `calendar_service.dart`).
 - **Voucher management (new)**:
   - **`vouchers/{voucherId}`**: voucher definitions (host-scoped or global).
   - **`voucher_redemptions/{redemptionId}`** (recommended): per-user usage tracking (optional but strongly recommended).
@@ -299,37 +283,42 @@ Recommended for enforcing per-user limits without scanning all bookings.
 ```
 
 ### Notes (current codebase quirks)
-- There are **two daily price storage patterns** in current code:
-  - `rooms/{roomId}/daily_prices/{yyyy-MM-dd}` (used by `room_service.dart`)
-  - `daily_prices/{roomId_yyyy-MM-dd}` (used by `calendar_service.dart`)
-  Pick one as the long-term source of truth to reduce duplication.
+- Daily price overrides use a single canonical path:
+  - `rooms/{roomId}/daily_prices/{yyyy-MM-dd}` (see `RoomService` / `CalendarService`)
 
 ## Capabilities (by role)
 This section is intentionally written in a structured way for easy retrieval.
 
 ### User
 - **Authentication & Security**
-  - **Registration/Login**: session persistence + refresh token support
+  - **Registration/Login**: session persistence
   - **Forgot password**: recovery via email
-  - **OTP verification**: planned (coming soon)
 
 - **Explore & Search**
   - **Homepage**: featured rooms + nearby rooms + categories
-  - **Advanced search**: name, location, price range, guest count, check-in/out times
-  - **Filters**: price sort, rating, amenities (wifi, pool, air conditioning, …)
+  - **Search/filter**: basic discovery + filters (as implemented in UI screens)
   - **Map search**: Google Maps-based discovery
 
 - **Room details & Booking**
-  - **Details**: image carousel, description, rules, reviews
-  - **Availability**: calendar-based selection with hour precision
-  - **Booking flow**: total calculation based on floor-rounded hours + discount code/voucher + user info confirmation
+  - **Details**: image carousel, description, amenities
+  - **Host info**: open **public host profile** (host details, host vouchers, host other rooms, quick messaging)
+  - **Booking flow**: select **check-in datetime** then **check-out datetime** (supports different dates), total calculation based on **floor-rounded hours**, optional voucher
   - **Status tracking**: Pending → Confirmed → Completed/Cancelled
 
 - **Payment & Account**
-  - **Payments**: COD is currently the only allowed method (VNPay / card planned)
+  - **Payments**: COD only (current implementation)
   - **Manage bookings**: history, details, date change request, cancellation/refund
-  - **Reviews**: star rating, comments, photo upload
   - **Profile**: update info, avatar, password
+
+- **Vouchers**
+  - **Voucher tab (footer)**: browse **Global** vouchers and **Host-specific** vouchers
+  - **Copy voucher code**: tap copy icon to copy the code to clipboard
+  - **Voucher labeling**: shows `Global` or `Specific Host` and the **Host name** for host vouchers
+
+- **Chat**
+  - **Chat list**: view existing rooms
+  - **Search users**: search by **name/email/phone** to start messaging
+  - **1:1 private messaging**: open chat room and send messages
 
 ### Host
 - **Room management**: create/edit/delete rooms; bulk update images/prices/status
