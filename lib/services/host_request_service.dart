@@ -1,17 +1,17 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/host_request_model.dart';
+import '../DTOs/submit_host_request_dto.dart';
 
 class HostRequestService {
   final CollectionReference _requestsCollection = FirebaseFirestore.instance
       .collection('host_requests');
 
-  /// Submit a new host request
-  Future<void> submitRequest(HostRequestModel request) async {
-    // Before submitting a new request, ensure the user does not already have a pending/approved request.
-    // That should be checked via UI, but it's good to recheck conceptually.
+  /// Submit a new host request from a [SubmitHostRequestDTO].
+  Future<void> submitRequest(SubmitHostRequestDTO dto) async {
+    final error = dto.validate();
+    if (error != null) throw Exception(error);
 
-    // We add a new document, the ID is auto-generated
-    await _requestsCollection.add(request.toMap());
+    await _requestsCollection.add(dto.toModel().toMap());
   }
 
   /// Update an existing request (for when admin rejects, and user resubmits)

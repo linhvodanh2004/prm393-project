@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/chat_model.dart';
+import '../DTOs/send_message_dto.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/notification_service.dart';
 
@@ -88,35 +89,38 @@ class ChatService {
         );
   }
 
-  // Send a message
-  Future<void> sendMessage(String roomId, String targetId, String text) async {
+  /// Send a message using [SendMessageDTO].
+  Future<void> sendMessage(SendMessageDTO dto) async {
+    final error = dto.validate();
+    if (error != null) throw Exception(error);
+
     final currentId = _auth.currentUser!.uid;
 
     // 1. Add message document
     final msg = MessageModel(
       id: '',
-      roomId: roomId,
+      roomId: dto.roomId,
       senderId: currentId,
-      text: text,
+      text: dto.text,
       createdAt: DateTime.now(),
     );
     await _firestore.collection('messages').add(msg.toMap());
 
     // 2. Update Room metadata (lastMessage, updatedAt, increment target unread count)
-    await _firestore.collection('chat_rooms').doc(roomId).update({
-      'lastMessage': text,
+    await _firestore.collection('chat_rooms').doc(dto.roomId).update({
+      'lastMessage': dto.text,
       'updatedAt': FieldValue.serverTimestamp(),
-      'unreadCounts.$targetId': FieldValue.increment(1),
+      'unreadCounts.${dto.targetId}': FieldValue.increment(1),
     });
 
     // 3. Trigger Notification
     final currentName = _auth.currentUser?.displayName ?? 'Một người';
     await NotificationService().createNotification(
-      recipientId: targetId,
+      recipientId: dto.targetId,
       title: 'Tin nhắn mới từ $currentName',
-      body: text,
+      body: dto.text,
       type: 'chat',
-      relatedId: roomId,
+      relatedId: dto.roomId,
     );
   }
 

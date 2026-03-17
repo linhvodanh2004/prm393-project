@@ -1,6 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/booking_model.dart';
 import '../services/notification_service.dart';
+import '../DTOs/create_booking_dto.dart';
+import '../DTOs/update_booking_status_dto.dart';
 
 // Valid status transitions
 const _validTransitions = <String, List<String>>{
@@ -46,44 +48,50 @@ class BookingService {
             snap.docs.map((d) => BookingModel.fromMap(d.data(), d.id)).toList());
   }
 
-  Future<String> createBooking(BookingModel booking) async {
+  /// Create a booking from a [CreateBookingDTO].
+  Future<String> createBooking(CreateBookingDTO dto) async {
+    final error = dto.validate();
+    if (error != null) throw Exception(error);
+
     final docRef =
-        await _firestore.collection('bookings').add(booking.toMap());
+        await _firestore.collection('bookings').add(dto.toModel().toMap());
     await NotificationService().createNotification(
-      recipientId: booking.hostId,
+      recipientId: dto.hostId,
       title: 'Đơn đặt phòng mới!',
-      body:
-          'Khách ${booking.userName} vừa đặt phòng ${booking.roomTitle}.',
+      body: 'Khách ${dto.userName} vừa đặt phòng ${dto.roomTitle}.',
       type: 'booking',
       relatedId: docRef.id,
     );
     return docRef.id;
   }
 
+  /// Update booking status using [UpdateBookingStatusDTO].
   Future<void> updateBookingStatus(
     String bookingId,
-    String newStatus, {
-    String? actorId,
-  }) async {
+    UpdateBookingStatusDTO dto,
+  ) async {
     final doc =
         await _firestore.collection('bookings').doc(bookingId).get();
     if (!doc.exists) throw Exception('Booking không tồn tại');
 
+    final dtoError = dto.validate();
+    if (dtoError != null) throw Exception(dtoError);
+
     final booking = BookingModel.fromMap(doc.data()!, doc.id);
     final allowed = _validTransitions[booking.status] ?? [];
-    if (!allowed.contains(newStatus)) {
+    if (!allowed.contains(dto.newStatus)) {
       throw Exception(
-          'Không thể chuyển trạng thái từ "${booking.status}" sang "$newStatus"');
+          'Không thể chuyển trạng thái từ "${booking.status}" sang "${dto.newStatus}"');
     }
 
     await _firestore.collection('bookings').doc(bookingId).update({
-      'status': newStatus,
+      'status': dto.newStatus,
       'updatedAt': FieldValue.serverTimestamp(),
     });
 
-    final statusLabel = _statusLabel(newStatus);
+    final statusLabel = _statusLabel(dto.newStatus);
     // Notify user (host-side actions)
-    if (actorId == null || actorId == booking.hostId) {
+    if (dto.actorId == null || dto.actorId == booking.hostId) {
       await NotificationService().createNotification(
         recipientId: booking.userId,
         title: 'Cập nhật trạng thái đặt phòng',
@@ -94,7 +102,7 @@ class BookingService {
     }
 
     // Notify host (user-side cancel)
-    if (newStatus == 'cancelled' && (actorId == booking.userId)) {
+    if (dto.newStatus == 'cancelled' && dto.actorId == booking.userId) {
       await NotificationService().createNotification(
         recipientId: booking.hostId,
         title: 'Khách đã hủy đặt phòng',

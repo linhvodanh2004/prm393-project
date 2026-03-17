@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/notification_model.dart';
+import '../DTOs/create_notification_dto.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class NotificationService {
@@ -62,7 +63,9 @@ class NotificationService {
     await batch.commit();
   }
 
-  // Create a new notification (used by other services)
+  /// Create a new notification (used by other services).
+  /// Accepts a [CreateNotificationDTO] or the named parameters directly for
+  /// backward-compatible internal usage.
   Future<void> createNotification({
     required String recipientId,
     required String title,
@@ -70,13 +73,40 @@ class NotificationService {
     required String type,
     String? relatedId,
   }) async {
-    final model = NotificationModel(
-      id: '',
+    final dto = CreateNotificationDTO(
       recipientId: recipientId,
       title: title,
       body: body,
       type: type,
       relatedId: relatedId,
+    );
+    final error = dto.validate();
+    if (error != null) throw Exception(error);
+
+    final model = NotificationModel(
+      id: '',
+      recipientId: dto.recipientId,
+      title: dto.title,
+      body: dto.body,
+      type: dto.type,
+      relatedId: dto.relatedId,
+      createdAt: DateTime.now(),
+    );
+    await _firestore.collection('notifications').add(model.toMap());
+  }
+
+  /// Create a notification from a pre-built [CreateNotificationDTO].
+  Future<void> createNotificationFromDto(CreateNotificationDTO dto) async {
+    final error = dto.validate();
+    if (error != null) throw Exception(error);
+
+    final model = NotificationModel(
+      id: '',
+      recipientId: dto.recipientId,
+      title: dto.title,
+      body: dto.body,
+      type: dto.type,
+      relatedId: dto.relatedId,
       createdAt: DateTime.now(),
     );
     await _firestore.collection('notifications').add(model.toMap());

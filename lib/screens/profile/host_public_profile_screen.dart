@@ -11,6 +11,7 @@ import '../../services/chat_service.dart';
 import '../../services/property_service.dart';
 import '../../services/room_service.dart';
 import '../../services/voucher_service.dart';
+import '../../DTOs/send_message_dto.dart';
 import '../../utils/format_utils.dart';
 import '../chat/chat_detail_screen.dart';
 import '../user/room_details_screen.dart';
@@ -66,7 +67,9 @@ class _HostPublicProfileScreenState extends State<HostPublicProfileScreen> {
     );
 
     if (quickMessage != null && quickMessage.trim().isNotEmpty) {
-      await _chatService.sendMessage(roomId, host.uid, quickMessage.trim());
+      await _chatService.sendMessage(
+        SendMessageDTO(roomId: roomId, targetId: host.uid, text: quickMessage.trim()),
+      );
     }
 
     if (!mounted) return;

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../models/user_model.dart';
 import '../../models/host_request_model.dart';
 import '../../services/host_request_service.dart';
+import '../../DTOs/submit_host_request_dto.dart';
 import '../../widgets/common/address_picker_sheet.dart';
 
 class BecomeHostScreen extends StatefulWidget {
@@ -163,26 +164,38 @@ class _BecomeHostScreenState extends State<BecomeHostScreen> {
     setState(() => _isSubmitting = true);
 
     try {
-      final request = HostRequestModel(
-        id: widget.existingRequest?.id ?? '',
-        userId: widget.userModel.uid,
-        businessName: _businessNameController.text.trim(),
-        phone: _phoneController.text.trim(),
-        address: _addressController.text.trim(),
-        description: _descriptionController.text.trim(),
-        businessStartYear: _businessStartYear,
-        businessType: _businessType,
-        taxCode: _businessType == 'business'
-            ? _taxCodeController.text.trim()
-            : null,
-        status: 'pending',
-        createdAt: widget.existingRequest?.createdAt ?? DateTime.now(),
-      );
-
       if (widget.existingRequest != null) {
+        // Resubmit: build a model from existing and update
+        final request = HostRequestModel(
+          id: widget.existingRequest!.id,
+          userId: widget.userModel.uid,
+          businessName: _businessNameController.text.trim(),
+          phone: _phoneController.text.trim(),
+          address: _addressController.text.trim(),
+          description: _descriptionController.text.trim(),
+          businessStartYear: _businessStartYear,
+          businessType: _businessType,
+          taxCode: _businessType == 'business'
+              ? _taxCodeController.text.trim()
+              : null,
+          status: 'pending',
+          createdAt: widget.existingRequest!.createdAt,
+        );
         await _hostRequestService.updateRequest(request);
       } else {
-        await _hostRequestService.submitRequest(request);
+        final dto = SubmitHostRequestDTO(
+          userId: widget.userModel.uid,
+          businessName: _businessNameController.text.trim(),
+          phone: _phoneController.text.trim(),
+          address: _addressController.text.trim(),
+          description: _descriptionController.text.trim(),
+          businessStartYear: _businessStartYear,
+          businessType: _businessType,
+          taxCode: _businessType == 'business'
+              ? _taxCodeController.text.trim()
+              : null,
+        );
+        await _hostRequestService.submitRequest(dto);
       }
 
       if (mounted) {

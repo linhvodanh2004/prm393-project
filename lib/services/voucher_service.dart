@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:math';
 import '../models/voucher_model.dart';
 import '../models/voucher_redemption_model.dart';
+import '../DTOs/create_voucher_dto.dart';
 
 class VoucherService {
   final _db = FirebaseFirestore.instance;
@@ -109,11 +110,15 @@ class VoucherService {
     throw Exception('Không thể tạo mã voucher duy nhất, vui lòng thử lại');
   }
 
-  /// Creates a voucher and auto-generates a random unique `code` (ignores input code).
-  Future<String> createVoucherWithRandomCode(VoucherModel voucher) async {
+  /// Creates a voucher from [CreateVoucherDTO] with an auto-generated unique code.
+  Future<String> createVoucherWithRandomCode(CreateVoucherDTO dto) async {
+    final error = dto.validate();
+    if (error != null) throw Exception(error);
+
     final code = await generateUniqueVoucherCode();
+    final model = dto.toModel();
     final ref = await _db.collection('vouchers').add({
-      ...voucher.toMap(),
+      ...model.toMap(),
       'code': code,
     });
     return ref.id;

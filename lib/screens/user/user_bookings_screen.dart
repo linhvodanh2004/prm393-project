@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../models/booking_model.dart';
 import '../../services/booking_service.dart';
 import '../../services/chat_service.dart';
+import '../../DTOs/update_booking_status_dto.dart';
 import '../chat/chat_detail_screen.dart';
 import '../../utils/format_utils.dart';
 
@@ -105,8 +106,7 @@ class _UserBookingsScreenState extends State<UserBookingsScreen>
     try {
       await _bookingService.updateBookingStatus(
         b.id,
-        'cancelled',
-        actorId: _currentUserId,
+        UpdateBookingStatusDTO(newStatus: 'cancelled', actorId: _currentUserId),
       );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

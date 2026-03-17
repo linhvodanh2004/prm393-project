@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/property_model.dart';
+import '../DTOs/save_property_dto.dart';
 
 class PropertyService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -19,11 +20,14 @@ class PropertyService {
     });
   }
 
-  // Create or update a property profile
-  Future<void> saveProperty(PropertyModel property) async {
+  /// Create or update a property profile from a [SavePropertyDTO].
+  Future<void> saveProperty(SavePropertyDTO dto) async {
+    final error = dto.validate();
+    if (error != null) throw Exception(error);
+
     await _firestore
         .collection('properties')
-        .doc(property.hostId)
-        .set(property.toMap(), SetOptions(merge: true));
+        .doc(dto.hostId)
+        .set(dto.toModel().toMap(), SetOptions(merge: true));
   }
 }

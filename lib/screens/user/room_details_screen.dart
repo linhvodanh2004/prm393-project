@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../models/room_model.dart';
-import '../../models/booking_model.dart';
 import '../../models/daily_price_model.dart';
 import '../../services/booking_service.dart';
 import '../../services/property_service.dart';
 import '../../services/room_service.dart';
 import '../../services/voucher_service.dart';
+import '../../DTOs/create_booking_dto.dart';
 import '../../utils/format_utils.dart';
 import '../profile/host_public_profile_screen.dart';
 
@@ -334,8 +334,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
 
     setState(() => _submitting = true);
     try {
-      final booking = BookingModel(
-        id: '',
+      final dto = CreateBookingDTO(
         roomId: widget.room.id,
         roomTitle: widget.room.title,
         userId: user.uid,
@@ -344,10 +343,8 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
         checkIn: _checkIn!,
         checkOut: _checkOut!,
         guestCount: _guestCount,
+        subtotal: _subtotal,
         totalPrice: _totalAfterDiscount,
-        status: 'pending',
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
         voucherId: _appliedVoucherId,
         voucherCode: _appliedVoucherCode,
         voucherScope: _appliedVoucherScope,
@@ -356,7 +353,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
             _voucherDiscountAmount > 0 ? _voucherDiscountAmount : null,
       );
 
-      final bookingId = await BookingService().createBooking(booking);
+      final bookingId = await BookingService().createBooking(dto);
 
       // Mark voucher as redeemed so user can't reuse it after a successful booking creation.
       if (_appliedVoucherId != null && _appliedVoucherId!.isNotEmpty) {

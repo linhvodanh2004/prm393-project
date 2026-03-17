@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../models/user_model.dart';
 import '../../models/host_request_model.dart';
-import '../../models/property_model.dart';
+import '../../DTOs/save_property_dto.dart';
 
 class ManageUsersScreen extends StatefulWidget {
   const ManageUsersScreen({super.key});
@@ -46,20 +46,15 @@ class _ManageUsersScreenState extends State<ManageUsersScreen>
     batch.update(_db.collection('users').doc(req.userId), {'role': 'HOST'});
 
     // Map host request → hotel/property info
-    final now = DateTime.now();
-    final property = PropertyModel(
+    final propertyDto = SavePropertyDTO(
       hostId: req.userId,
       title: req.businessName,
       description: req.description,
       address: req.address,
-      coverImage: '',
-      policies: const [],
-      createdAt: now,
-      updatedAt: now,
     );
     batch.set(
       _db.collection('properties').doc(req.userId),
-      property.toMap(),
+      propertyDto.toModel().toMap(),
       SetOptions(merge: true),
     );
 

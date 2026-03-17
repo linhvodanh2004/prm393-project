@@ -5,6 +5,8 @@ import 'package:image_picker/image_picker.dart';
 import '../../models/room_model.dart';
 import '../../services/room_service.dart';
 import '../../services/storage_service.dart';
+import '../../DTOs/create_room_dto.dart';
+import '../../DTOs/update_room_dto.dart';
 import '../../widgets/custom_text_field.dart';
 
 class EditRoomScreen extends StatefulWidget {
@@ -137,30 +139,35 @@ class _EditRoomScreenState extends State<EditRoomScreen> {
       // 2. Combine all images
       final finalImages = [..._existingImages, ...uploadedUrls];
 
-      // 3. Create or update model
-      final roomModel = RoomModel(
-        id:
-            widget.existingRoom?.id ??
-            '', // RoomService assigns ID on create implicitly inside collection().add(), so keep empty here (or use document Ref)
-        hostId: user.uid,
-        title: _titleController.text.trim(),
-        description: _descController.text.trim(),
-        images: finalImages,
-        basePrice: double.parse(_priceController.text.trim()),
-        status: _status,
-        quantity: int.parse(_quantityController.text.trim()),
-        amenities: _amenities,
-        createdAt: widget.existingRoom?.createdAt ?? DateTime.now(),
-        updatedAt: DateTime.now(),
-      );
-
+      // 3. Create or update via DTO
       if (widget.existingRoom == null) {
-        await _roomService.createRoom(roomModel);
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Tạo phòng thành công')));
+        final dto = CreateRoomDTO(
+          hostId: user.uid,
+          title: _titleController.text.trim(),
+          description: _descController.text.trim(),
+          images: finalImages,
+          basePrice: double.parse(_priceController.text.trim()),
+          amenities: _amenities,
+          quantity: int.parse(_quantityController.text.trim()),
+        );
+        await _roomService.createRoom(dto);
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Tạo phòng thành công')),
+        );
       } else {
-        await _roomService.updateRoom(roomModel);
+        final dto = UpdateRoomDTO(
+          roomId: widget.existingRoom!.id,
+          title: _titleController.text.trim(),
+          description: _descController.text.trim(),
+          images: finalImages,
+          basePrice: double.parse(_priceController.text.trim()),
+          status: _status,
+          amenities: _amenities,
+          quantity: int.parse(_quantityController.text.trim()),
+        );
+        await _roomService.updateRoom(dto);
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Cập nhật phòng thành công')),
         );
@@ -169,15 +176,14 @@ class _EditRoomScreenState extends State<EditRoomScreen> {
       if (mounted) Navigator.pop(context);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Lỗi: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Lỗi: $e')),
+        );
       }
     } finally {
-      if (mounted)
-        setState(() {
-          _isLoading = false;
-        });
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../models/booking_model.dart';
 import '../../services/booking_service.dart';
+import '../../DTOs/update_booking_status_dto.dart';
 import '../../utils/format_utils.dart';
 import 'admin_revenue_screen.dart';
 
@@ -61,7 +62,10 @@ class _AdminBookingsScreenState extends State<AdminBookingsScreen> {
 
     try {
       final newStatus = action == 'cancel' ? 'cancelled' : 'completed';
-      await _service.updateBookingStatus(b.id, newStatus, actorId: 'ADMIN');
+      await _service.updateBookingStatus(
+        b.id,
+        UpdateBookingStatusDTO(newStatus: newStatus, actorId: 'ADMIN'),
+      );
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

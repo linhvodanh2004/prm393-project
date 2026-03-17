@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../models/booking_model.dart';
 import '../../services/booking_service.dart';
 import '../../services/chat_service.dart';
+import '../../DTOs/update_booking_status_dto.dart';
 import '../chat/chat_detail_screen.dart';
 import '../../utils/format_utils.dart';
 
@@ -78,8 +79,7 @@ class _HostBookingsScreenState extends State<HostBookingsScreen>
     try {
       await _bookingService.updateBookingStatus(
         b.id,
-        newStatus,
-        actorId: _hostId,
+        UpdateBookingStatusDTO(newStatus: newStatus, actorId: _hostId),
       );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

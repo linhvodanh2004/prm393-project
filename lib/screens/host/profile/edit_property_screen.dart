@@ -4,6 +4,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../../models/property_model.dart';
 import '../../../services/property_service.dart';
 import '../../../services/storage_service.dart';
+import '../../../DTOs/save_property_dto.dart';
 import '../../../widgets/common/address_picker_sheet.dart';
 
 class EditPropertyScreen extends StatefulWidget {
@@ -100,18 +101,17 @@ class _EditPropertyScreenState extends State<EditPropertyScreen> {
     setState(() => _isSaving = true);
 
     try {
-      final newProperty = PropertyModel(
+      final dto = SavePropertyDTO(
         hostId: widget.hostId,
         title: _titleController.text.trim(),
         description: _descController.text.trim(),
         address: _addressController.text.trim(),
         coverImage: _coverImageUrl!,
         policies: widget.currentProperty?.policies ?? [],
-        createdAt: widget.currentProperty?.createdAt ?? DateTime.now(),
-        updatedAt: DateTime.now(),
+        existingCreatedAt: widget.currentProperty?.createdAt,
       );
 
-      await _propertyService.saveProperty(newProperty);
+      await _propertyService.saveProperty(dto);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

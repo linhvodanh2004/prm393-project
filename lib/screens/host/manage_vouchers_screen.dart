@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../models/voucher_model.dart';
 import '../../services/voucher_service.dart';
+import '../../DTOs/create_voucher_dto.dart';
 import '../../utils/format_utils.dart';
 
 class ManageVouchersScreen extends StatefulWidget {
@@ -291,28 +292,42 @@ class _VoucherFormSheetState extends State<_VoucherFormSheet> {
     setState(() => _saving = true);
     try {
       final now = DateTime.now();
-      final voucher = VoucherModel(
-        id: widget.existing?.id ?? '',
-        code: _codeCtrl.text.trim().toUpperCase(),
-        scope: widget.role == 'HOST' ? 'HOST' : 'GLOBAL',
-        hostId: widget.role == 'HOST' ? widget.hostId : null,
-        type: _type,
-        value: double.parse(_valueCtrl.text.trim()),
-        maxDiscount: _maxDiscountCtrl.text.trim().isNotEmpty
-            ? double.tryParse(_maxDiscountCtrl.text.trim())
-            : null,
-        minSubtotal: double.tryParse(_minSubtotalCtrl.text.trim()) ?? 0,
-        endAt: _endAt,
-        isActive: widget.existing?.isActive ?? true,
-        createdBy: widget.hostId,
-        createdAt: widget.existing?.createdAt ?? now,
-        updatedAt: now,
-      );
 
       if (widget.existing != null) {
+        // Update uses existing VoucherModel directly
+        final voucher = VoucherModel(
+          id: widget.existing!.id,
+          code: widget.existing!.code,
+          scope: widget.role == 'HOST' ? 'HOST' : 'GLOBAL',
+          hostId: widget.role == 'HOST' ? widget.hostId : null,
+          type: _type,
+          value: double.parse(_valueCtrl.text.trim()),
+          maxDiscount: _maxDiscountCtrl.text.trim().isNotEmpty
+              ? double.tryParse(_maxDiscountCtrl.text.trim())
+              : null,
+          minSubtotal: double.tryParse(_minSubtotalCtrl.text.trim()) ?? 0,
+          endAt: _endAt,
+          isActive: widget.existing!.isActive,
+          createdBy: widget.hostId,
+          createdAt: widget.existing!.createdAt,
+          updatedAt: now,
+        );
         await _service.updateVoucher(voucher);
       } else {
-        await _service.createVoucherWithRandomCode(voucher);
+        final dto = CreateVoucherDTO(
+          scope: widget.role == 'HOST' ? 'HOST' : 'GLOBAL',
+          hostId: widget.role == 'HOST' ? widget.hostId : null,
+          type: _type,
+          value: double.parse(_valueCtrl.text.trim()),
+          maxDiscount: _maxDiscountCtrl.text.trim().isNotEmpty
+              ? double.tryParse(_maxDiscountCtrl.text.trim())
+              : null,
+          minSubtotal: double.tryParse(_minSubtotalCtrl.text.trim()) ?? 0,
+          endAt: _endAt,
+          isActive: true,
+          createdBy: widget.hostId,
+        );
+        await _service.createVoucherWithRandomCode(dto);
       }
 
       widget.onSaved();

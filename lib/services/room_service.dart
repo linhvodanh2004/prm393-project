@@ -1,6 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/room_model.dart';
 import '../models/daily_price_model.dart';
+import '../DTOs/create_room_dto.dart';
+import '../DTOs/update_room_dto.dart';
+import '../DTOs/set_daily_price_dto.dart';
 import 'package:intl/intl.dart';
 
 class RoomService {
@@ -22,15 +25,32 @@ class RoomService {
         );
   }
 
-  // Create a new room
-  Future<String> createRoom(RoomModel room) async {
-    final docRef = await _firestore.collection('rooms').add(room.toMap());
+  /// Create a new room from a [CreateRoomDTO].
+  Future<String> createRoom(CreateRoomDTO dto) async {
+    final error = dto.validate();
+    if (error != null) throw Exception(error);
+
+    final docRef =
+        await _firestore.collection('rooms').add(dto.toModel().toMap());
     return docRef.id;
   }
 
-  // Update an existing room
-  Future<void> updateRoom(RoomModel room) async {
-    await _firestore.collection('rooms').doc(room.id).update(room.toMap());
+  /// Update an existing room using [UpdateRoomDTO].
+  /// Fetches the current room doc, merges changes, then persists.
+  Future<void> updateRoom(UpdateRoomDTO dto) async {
+    final error = dto.validate();
+    if (error != null) throw Exception(error);
+
+    final doc =
+        await _firestore.collection('rooms').doc(dto.roomId).get();
+    if (!doc.exists) throw Exception('Phòng không tồn tại');
+
+    final existing = RoomModel.fromMap(doc.data()!, doc.id);
+    final updated = dto.applyTo(existing);
+    await _firestore
+        .collection('rooms')
+        .doc(dto.roomId)
+        .update(updated.toMap());
   }
 
   // Delete a room
@@ -75,15 +95,18 @@ class RoomService {
         .toList();
   }
 
-  // Set or update a specific day's price/block status
-  Future<void> setDailyPrice(DailyPriceModel dailyPrice) async {
-    final dateKey = DateFormat('yyyy-MM-dd').format(dailyPrice.date);
+  /// Set or update a specific day's price/block status using [SetDailyPriceDTO].
+  Future<void> setDailyPrice(SetDailyPriceDTO dto) async {
+    final error = dto.validate();
+    if (error != null) throw Exception(error);
+
+    final dateKey = DateFormat('yyyy-MM-dd').format(dto.date);
     await _firestore
         .collection('rooms')
-        .doc(dailyPrice.roomId)
+        .doc(dto.roomId)
         .collection('daily_prices')
         .doc(dateKey)
-        .set(dailyPrice.toMap(), SetOptions(merge: true));
+        .set(dto.toModel().toMap(), SetOptions(merge: true));
   }
 
   // Remove an override to revert back to the room's basePrice

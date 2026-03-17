@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../models/chat_model.dart';
 import '../../services/chat_service.dart';
+import '../../DTOs/send_message_dto.dart';
 import '../../utils/format_utils.dart';
 
 class ChatDetailScreen extends StatefulWidget {
@@ -47,7 +48,9 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     if (text.isEmpty) return;
 
     try {
-      await _chatService.sendMessage(widget.roomId, widget.targetId, text);
+      await _chatService.sendMessage(
+        SendMessageDTO(roomId: widget.roomId, targetId: widget.targetId, text: text),
+      );
       // Only clear after successful send so user can retry on failure
       _msgController.clear();
     } catch (e) {

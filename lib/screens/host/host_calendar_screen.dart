@@ -6,6 +6,7 @@ import 'package:table_calendar/table_calendar.dart';
 import '../../models/room_model.dart';
 import '../../models/daily_price_model.dart';
 import '../../services/room_service.dart';
+import '../../DTOs/set_daily_price_dto.dart';
 import '../../utils/format_utils.dart';
 
 class HostCalendarScreen extends StatefulWidget {
@@ -148,15 +149,13 @@ class _HostCalendarScreenState extends State<HostCalendarScreen> {
                       return;
                     }
                     Navigator.pop(ctx);
-                    // Map dialog state to RoomService's DailyPriceModel
-                    final dailyPrice = DailyPriceModel(
-                      id: '',
+                    final dto = SetDailyPriceDTO(
                       roomId: selectedRoom.id,
                       date: date,
                       price: price,
                       isBlocked: _isEditingBlocked,
                     );
-                    await _roomService.setDailyPrice(dailyPrice);
+                    await _roomService.setDailyPrice(dto);
                     if (!context.mounted) return;
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(content: Text('Đã cập nhật lịch phòng')),
