@@ -7,7 +7,6 @@ import '../user/explore_screen.dart';
 import '../user/favorites_screen.dart';
 import '../user/user_bookings_screen.dart';
 import '../user/user_vouchers_screen.dart';
-import '../chat/chat_list_screen.dart';
 import '../../widgets/common/chat_badge_icon.dart';
 import '../../widgets/common/notification_badge_icon.dart';
 
@@ -21,14 +20,9 @@ import '../host/host_calendar_screen.dart';
 import '../admin/manage_users_screen.dart';
 import '../admin/admin_rooms_screen.dart';
 import '../admin/admin_bookings_screen.dart';
-import '../admin/admin_payments_screen.dart';
 
 // Voucher Screens (shared)
 import '../host/manage_vouchers_screen.dart';
-
-// Notification Screen
-import '../notifications/notification_screen.dart';
-
 
 class HomeScreen extends StatefulWidget {
   final UserModel userModel;
@@ -113,7 +107,6 @@ class _HomeScreenState extends State<HomeScreen> {
           ManageUsersScreen(),
           AdminRoomsScreen(),
           AdminBookingsScreen(),
-          AdminPaymentsScreen(),
           ManageVouchersScreen(role: 'ADMIN'),
           UserDetailsScreen(),
         ];
@@ -156,11 +149,6 @@ class _HomeScreenState extends State<HomeScreen> {
             icon: Icon(Icons.event_note_outlined),
             activeIcon: Icon(Icons.event_note_rounded),
             label: 'Booking',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.payments_outlined),
-            activeIcon: Icon(Icons.payments_rounded),
-            label: 'Thanh toán',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.local_offer_outlined),

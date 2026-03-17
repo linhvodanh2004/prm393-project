@@ -60,23 +60,21 @@ class _AdminBookingsScreenState extends State<AdminBookingsScreen> {
 
     try {
       final newStatus = action == 'cancel' ? 'cancelled' : 'completed';
-      await _service.updateBookingStatus(b.id, newStatus);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content: Text('Đã $label booking'),
-              behavior: SnackBarBehavior.floating),
-        );
-      }
+      await _service.updateBookingStatus(b.id, newStatus, actorId: 'ADMIN');
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text('Đã $label booking'),
+            behavior: SnackBarBehavior.floating),
+      );
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content: Text('Lỗi: $e'),
-              backgroundColor: Colors.red,
-              behavior: SnackBarBehavior.floating),
-        );
-      }
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text('Lỗi: $e'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating),
+      );
     }
   }
 
@@ -214,9 +212,9 @@ class _AdminBookingsScreenState extends State<AdminBookingsScreen> {
                   padding: const EdgeInsets.symmetric(
                       horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
-                    color: color.withOpacity(0.2),
+                    color: color.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: color.withOpacity(0.5)),
+                    border: Border.all(color: color.withValues(alpha: 0.5)),
                   ),
                   child: Text(_statusLabels[b.status] ?? b.status,
                       style: TextStyle(

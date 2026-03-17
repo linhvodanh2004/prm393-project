@@ -43,7 +43,7 @@ class _HostDashboardScreenState extends State<HostDashboardScreen> {
         automaticallyImplyLeading: false,
       ),
       body: StreamBuilder<List<BookingModel>>(
-        stream: _revenueService.getPaidBookings(_hostId!),
+        stream: _revenueService.getRevenueBookings(_hostId),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(
@@ -83,8 +83,9 @@ class _HostDashboardScreenState extends State<HostDashboardScreen> {
             0.0,
             (m, v) => v > m ? v : m,
           );
-          if (maxMonthly == 0)
+          if (maxMonthly == 0) {
             maxMonthly = 1; // prevent divide by zero in chart
+          }
 
           // Add 20% buffer on top of max value for better look
           double maxY = maxMonthly * 1.2;
@@ -147,7 +148,7 @@ class _HostDashboardScreenState extends State<HostDashboardScreen> {
                     ),
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(
-                      color: const Color(0xFFD4A853).withOpacity(0.3),
+                      color: const Color(0xFFD4A853).withValues(alpha: 0.3),
                     ),
                   ),
                   child: Column(
@@ -168,7 +169,7 @@ class _HostDashboardScreenState extends State<HostDashboardScreen> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        '${yearBookings.length} lượt đăt phòng hoàn thành',
+                        '${yearBookings.length} lượt đăt phòng (confirmed/paid/completed)',
                         style: const TextStyle(
                           color: Colors.white70,
                           fontSize: 12,
@@ -241,6 +242,7 @@ class _HostDashboardScreenState extends State<HostDashboardScreen> {
                           sideTitles: SideTitles(
                             showTitles: true,
                             reservedSize: 40,
+                            interval: maxY / 4,
                             getTitlesWidget: (value, meta) {
                               if (value == maxY) return const SizedBox();
                               return Padding(

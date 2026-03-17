@@ -5,7 +5,6 @@ import '../../models/booking_model.dart';
 import '../../services/booking_service.dart';
 import '../../services/chat_service.dart';
 import '../chat/chat_detail_screen.dart';
-import '../../widgets/common/notification_badge_icon.dart';
 import '../../utils/format_utils.dart';
 
 class HostBookingsScreen extends StatefulWidget {
@@ -77,7 +76,11 @@ class _HostBookingsScreenState extends State<HostBookingsScreen>
     }
 
     try {
-      await _bookingService.updateBookingStatus(b.id, newStatus);
+      await _bookingService.updateBookingStatus(
+        b.id,
+        newStatus,
+        actorId: _hostId,
+      );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -170,9 +173,9 @@ class _HostBookingsScreenState extends State<HostBookingsScreen>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.15),
+        color: color.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.5)),
+        border: Border.all(color: color.withValues(alpha: 0.5)),
       ),
       child: Text(label,
           style: TextStyle(
@@ -391,6 +394,8 @@ class _HostBookingsScreenState extends State<HostBookingsScreen>
           }
 
           final all = snapshot.data ?? [];
+          // Auto finalize outdated bookings (time-based)
+          _bookingService.autoFinalizeByTime(all);
           final pending =
               all.where((b) => b.status == 'pending').toList();
           final confirmed =

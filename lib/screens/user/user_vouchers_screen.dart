@@ -62,11 +62,11 @@ class _UserVouchersScreenState extends State<UserVouchersScreen>
     if (v.type == 'PERCENT') {
       final pct = v.value.toStringAsFixed(0);
       if (v.maxDiscount != null && v.maxDiscount! > 0) {
-        return 'Giảm $pct% (tối đa ${FormatUtils.vndCompact(v.maxDiscount!)})';
+        return 'Giảm $pct% (tối đa ${FormatUtils.vnd(v.maxDiscount!)})';
       }
       return 'Giảm $pct%';
     }
-    return 'Giảm ${FormatUtils.vndCompact(v.value)}';
+    return 'Giảm ${FormatUtils.vnd(v.value)}';
   }
 
   Widget _chip(String text, {Color? color, Color? bg}) {
@@ -152,7 +152,7 @@ class _UserVouchersScreenState extends State<UserVouchersScreen>
             if (v.minSubtotal > 0) ...[
               const SizedBox(height: 4),
               Text(
-                'Đơn tối thiểu: ${FormatUtils.vndCompact(v.minSubtotal)}',
+                'Đơn tối thiểu: ${FormatUtils.vnd(v.minSubtotal)}',
                 style: const TextStyle(color: Colors.white54, fontSize: 12),
               ),
             ],

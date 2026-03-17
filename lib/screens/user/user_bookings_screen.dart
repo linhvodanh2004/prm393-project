@@ -103,7 +103,11 @@ class _UserBookingsScreenState extends State<UserBookingsScreen>
 
     if (confirmed != true) return;
     try {
-      await _bookingService.updateBookingStatus(b.id, 'cancelled');
+      await _bookingService.updateBookingStatus(
+        b.id,
+        'cancelled',
+        actorId: _currentUserId,
+      );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -154,9 +158,9 @@ class _UserBookingsScreenState extends State<UserBookingsScreen>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.2),
+        color: color.withValues(alpha: 0.2),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withOpacity(0.5)),
+        border: Border.all(color: color.withValues(alpha: 0.5)),
       ),
       child: Text(text,
           style: TextStyle(
@@ -312,6 +316,8 @@ class _UserBookingsScreenState extends State<UserBookingsScreen>
           }
 
           final all = snapshot.data ?? [];
+          // Auto finalize outdated bookings (time-based)
+          _bookingService.autoFinalizeByTime(all);
           final upcoming = all
               .where((b) =>
                   b.status == 'confirmed' || b.status == 'paid')

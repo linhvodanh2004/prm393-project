@@ -5,7 +5,7 @@ import '../services/notification_service.dart';
 // Valid status transitions
 const _validTransitions = <String, List<String>>{
   'pending': ['confirmed', 'rejected', 'cancelled'],
-  'confirmed': ['paid', 'cancelled'],
+  'confirmed': ['paid', 'cancelled', 'completed'],
   'paid': ['completed'],
   // Terminal states — no further transitions allowed
   'completed': [],
@@ -60,7 +60,11 @@ class BookingService {
     return docRef.id;
   }
 
-  Future<void> updateBookingStatus(String bookingId, String newStatus) async {
+  Future<void> updateBookingStatus(
+    String bookingId,
+    String newStatus, {
+    String? actorId,
+  }) async {
     final doc =
         await _firestore.collection('bookings').doc(bookingId).get();
     if (!doc.exists) throw Exception('Booking không tồn tại');
@@ -78,14 +82,51 @@ class BookingService {
     });
 
     final statusLabel = _statusLabel(newStatus);
-    await NotificationService().createNotification(
-      recipientId: booking.userId,
-      title: 'Cập nhật trạng thái đặt phòng',
-      body:
-          'Đơn đặt phòng "${booking.roomTitle}" của bạn $statusLabel.',
-      type: 'booking',
-      relatedId: bookingId,
-    );
+    // Notify user (host-side actions)
+    if (actorId == null || actorId == booking.hostId) {
+      await NotificationService().createNotification(
+        recipientId: booking.userId,
+        title: 'Cập nhật trạng thái đặt phòng',
+        body: 'Đơn đặt phòng "${booking.roomTitle}" của bạn $statusLabel.',
+        type: 'booking',
+        relatedId: bookingId,
+      );
+    }
+
+    // Notify host (user-side cancel)
+    if (newStatus == 'cancelled' && (actorId == booking.userId)) {
+      await NotificationService().createNotification(
+        recipientId: booking.hostId,
+        title: 'Khách đã hủy đặt phòng',
+        body: 'Khách ${booking.userName} đã hủy booking "${booking.roomTitle}".',
+        type: 'booking',
+        relatedId: bookingId,
+      );
+    }
+  }
+
+  /// Auto finalize bookings when current time passes check-out:
+  /// - pending  -> cancelled
+  /// - confirmed/paid -> completed
+  Future<void> autoFinalizeByTime(List<BookingModel> bookings) async {
+    final now = DateTime.now();
+    for (final b in bookings) {
+      if (!b.checkOut.isBefore(now)) continue;
+
+      if (b.status == 'pending') {
+        // pending -> cancelled
+        await _firestore.collection('bookings').doc(b.id).update({
+          'status': 'cancelled',
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      } else if (b.status == 'confirmed' || b.status == 'paid') {
+        // confirmed/paid -> completed
+        await _firestore.collection('bookings').doc(b.id).update({
+          'status': 'completed',
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      }
+    }
   }
 
   // Check for conflicting confirmed/paid bookings on same room + overlapping dates.

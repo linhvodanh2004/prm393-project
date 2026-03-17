@@ -138,7 +138,7 @@ class _ManageVouchersScreenState extends State<ManageVouchersScreen> {
   Widget _buildCard(VoucherModel v) {
     final discountLabel = v.type == 'PERCENT'
         ? '${v.value.toStringAsFixed(0)}%'
-        : FormatUtils.vndCompact(v.value);
+        : FormatUtils.vnd(v.value);
 
     return Card(
       color: const Color(0xFF1A1A1A),
@@ -172,7 +172,7 @@ class _ManageVouchersScreenState extends State<ManageVouchersScreen> {
                 style: const TextStyle(color: Colors.white70, fontSize: 14)),
             if (v.minSubtotal > 0)
               Text(
-                  'Đơn tối thiểu: ${FormatUtils.vndCompact(v.minSubtotal)}',
+                  'Đơn tối thiểu: ${FormatUtils.vnd(v.minSubtotal)}',
                   style:
                       const TextStyle(color: Colors.white38, fontSize: 12)),
             Text('Hết hạn: ${_fmtDate(v.endAt)}',

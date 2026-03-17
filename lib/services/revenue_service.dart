@@ -4,12 +4,12 @@ import '../models/booking_model.dart';
 class RevenueService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  // Stream paid and completed bookings for a specific host
-  Stream<List<BookingModel>> getPaidBookings(String hostId) {
+  // Stream confirmed/paid/completed bookings for a specific host
+  Stream<List<BookingModel>> getRevenueBookings(String hostId) {
     return _firestore
         .collection('bookings')
         .where('hostId', isEqualTo: hostId)
-        .where('status', whereIn: ['paid', 'completed'])
+        .where('status', whereIn: ['confirmed', 'paid', 'completed'])
         .snapshots()
         .map(
           (snapshot) => snapshot.docs
