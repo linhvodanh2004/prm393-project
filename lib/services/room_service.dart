@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:geoflutterfire_plus/geoflutterfire_plus.dart';
 import '../models/room_model.dart';
 import '../models/daily_price_model.dart';
 import '../DTOs/create_room_dto.dart';
@@ -30,8 +31,23 @@ class RoomService {
     final error = dto.validate();
     if (error != null) throw Exception(error);
 
+    var model = dto.toModel();
+
+    // Lấy Location mặc định từ Host Property để gán cho Room này
+    try {
+      final propertyDoc = await _firestore.collection('properties').doc(model.hostId).get();
+      if (propertyDoc.exists && propertyDoc.data() != null) {
+        final location = propertyDoc.data()!['location'];
+        if (location != null) {
+          model = model.copyWith(location: location as Map<String, dynamic>);
+        }
+      }
+    } catch (e) {
+      print('Error fetching property location: $e');
+    }
+
     final docRef =
-        await _firestore.collection('rooms').add(dto.toModel().toMap());
+        await _firestore.collection('rooms').add(model.toMap());
     return docRef.id;
   }
 
@@ -56,6 +72,36 @@ class RoomService {
   // Delete a room
   Future<void> deleteRoom(String roomId) async {
     await _firestore.collection('rooms').doc(roomId).delete();
+  }
+
+  // Khám phá theo Bán Kính: Tìm kiếm phòng nằm trong phạm vi (Vĩ độ, Kinh độ, km)
+  Stream<List<RoomModel>> getRoomsWithinRadius({
+    required double lat,
+    required double lng,
+    required double radiusInKm,
+  }) {
+    final center = GeoFirePoint(GeoPoint(lat, lng));
+    final collectionReference = _firestore.collection('rooms');
+
+    return GeoCollectionReference(collectionReference)
+        .subscribeWithin(
+          center: center,
+          radiusInKm: radiusInKm,
+          field: 'location',
+          geopointFrom: (data) {
+            final loc = data['location'] as Map<String, dynamic>?;
+            if (loc != null && loc['geopoint'] != null) {
+              return loc['geopoint'] as GeoPoint;
+            }
+            // Fallback (rooms without location will never be matched properly anyway)
+            return const GeoPoint(0, 0); 
+          },
+          queryBuilder: (query) => query.where('status', isEqualTo: 'available'),
+          strictMode: true,
+        )
+        .map((docs) => docs
+            .map((doc) => RoomModel.fromMap(doc.data() as Map<String, dynamic>, doc.id))
+            .toList());
   }
 
   // -- Calendar / Daily Prices --

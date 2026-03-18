@@ -10,6 +10,7 @@ class RoomModel {
   final String status; // 'available', 'maintenance', 'unavailable'
   final int quantity; // Total units of this room type
   final List<String> amenities;
+  final Map<String, dynamic>? location; // Inherited from PropertyModel for Geohash search
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -23,6 +24,7 @@ class RoomModel {
     required this.status,
     required this.quantity,
     required this.amenities,
+    this.location,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -38,6 +40,7 @@ class RoomModel {
       status: data['status'] ?? 'available',
       quantity: data['quantity'] ?? 1,
       amenities: List<String>.from(data['amenities'] ?? []),
+      location: data['location'] as Map<String, dynamic>?,
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       updatedAt: (data['updatedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
     );
@@ -49,7 +52,7 @@ class RoomModel {
   }
 
   Map<String, dynamic> toMap() {
-    return {
+    final map = {
       'hostId': hostId,
       'title': title,
       'description': description,
@@ -61,6 +64,10 @@ class RoomModel {
       'createdAt': Timestamp.fromDate(createdAt),
       'updatedAt': Timestamp.fromDate(updatedAt),
     };
+    if (location != null) {
+      map['location'] = location!;
+    }
+    return map;
   }
 
   RoomModel copyWith({
@@ -73,6 +80,7 @@ class RoomModel {
     String? status,
     int? quantity,
     List<String>? amenities,
+    Map<String, dynamic>? location,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -86,6 +94,7 @@ class RoomModel {
       status: status ?? this.status,
       quantity: quantity ?? this.quantity,
       amenities: amenities ?? this.amenities,
+      location: location ?? this.location,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? DateTime.now(),
     );

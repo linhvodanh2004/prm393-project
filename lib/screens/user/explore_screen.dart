@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:geolocator/geolocator.dart';
 import '../../models/room_model.dart';
 import '../../services/favorite_service.dart';
+import '../../services/room_service.dart';
 import 'room_details_screen.dart';
 import '../../utils/format_utils.dart';
 
@@ -22,6 +24,11 @@ class _ExploreScreenState extends State<ExploreScreen> {
   String? _uid;
   Set<String> _favoriteIds = {};
   final Map<String, String> _hostAddressCache = {};
+
+  // For Geospatial Search
+  bool _searchNearMe = false;
+  double? _userLat;
+  double? _userLng;
 
   @override
   void initState() {
@@ -65,7 +72,60 @@ class _ExploreScreenState extends State<ExploreScreen> {
     return null;
   }
 
+  Future<void> _toggleNearMe(bool value) async {
+    if (value) {
+      // Yêu cầu quyền và lấy vị trí
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Vui lòng bật Dịch vụ định vị')));
+        return;
+      }
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Từ chối quyền định vị')));
+          return;
+        }
+      }
+      if (permission == LocationPermission.deniedForever) {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Quyền định vị bị từ chối vĩnh viễn.')));
+        return;
+      }
+
+      // Đã có quyền, lấy vị trí hiện tại
+      try {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Đang lấy vị trí...')));
+        Position position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
+        setState(() {
+          _userLat = position.latitude;
+          _userLng = position.longitude;
+          _searchNearMe = true;
+        });
+        if (mounted) ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      } catch (e) {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Lỗi định vị: $e')));
+      }
+    } else {
+      setState(() {
+        _searchNearMe = false;
+        _userLat = null;
+        _userLng = null;
+      });
+    }
+  }
+
   Stream<List<RoomModel>> _buildRoomStream() {
+    if (_searchNearMe && _userLat != null && _userLng != null) {
+      // Truy vấn không gian (Geospatial) bằng geoflutterfire_plus
+      return RoomService().getRoomsWithinRadius(
+        lat: _userLat!,
+        lng: _userLng!,
+        radiusInKm: 10.0,
+      );
+    }
+    
+    // Truy vấn mặc định (Toàn quốc)
     return FirebaseFirestore.instance
         .collection('rooms')
         .where('status', isEqualTo: 'available')
@@ -146,6 +206,23 @@ class _ExploreScreenState extends State<ExploreScreen> {
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
         children: [
+          // Nút Tìm phòng Gần đây
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: FilterChip(
+              avatar: Icon(Icons.near_me, size: 16, color: _searchNearMe ? Colors.black : Colors.white70),
+              label: Text('Gần tôi (<10km)',
+                  style: TextStyle(
+                      color: _searchNearMe ? Colors.black : Colors.white70,
+                      fontWeight: _searchNearMe ? FontWeight.bold : FontWeight.normal,
+                      fontSize: 12)),
+              selected: _searchNearMe,
+              selectedColor: const Color(0xFFFFD700),
+              backgroundColor: const Color(0xFF1A1A1A),
+              checkmarkColor: Colors.black,
+              onSelected: _toggleNearMe,
+            ),
+          ),
           // Amenity filter chips
           ..._amenityOptions.map((a) => Padding(
                 padding: const EdgeInsets.only(right: 8),

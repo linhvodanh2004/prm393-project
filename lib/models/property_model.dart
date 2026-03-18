@@ -7,6 +7,7 @@ class PropertyModel {
   final String address;
   final String coverImage;
   final List<String> policies;
+  final Map<String, dynamic>? location; // For geoflutterfire_plus
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -17,6 +18,7 @@ class PropertyModel {
     required this.address,
     required this.coverImage,
     required this.policies,
+    this.location,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -29,13 +31,14 @@ class PropertyModel {
       address: data['address'] ?? '',
       coverImage: data['coverImage'] ?? '',
       policies: List<String>.from(data['policies'] ?? []),
+      location: data['location'] as Map<String, dynamic>?,
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       updatedAt: (data['updatedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
     );
   }
 
   Map<String, dynamic> toMap() {
-    return {
+    final map = {
       'hostId': hostId,
       'title': title,
       'description': description,
@@ -45,6 +48,10 @@ class PropertyModel {
       'createdAt': Timestamp.fromDate(createdAt),
       'updatedAt': Timestamp.fromDate(updatedAt),
     };
+    if (location != null) {
+      map['location'] = location!;
+    }
+    return map;
   }
 
   PropertyModel copyWith({
@@ -53,6 +60,7 @@ class PropertyModel {
     String? address,
     String? coverImage,
     List<String>? policies,
+    Map<String, dynamic>? location,
   }) {
     return PropertyModel(
       hostId: hostId,
@@ -61,6 +69,7 @@ class PropertyModel {
       address: address ?? this.address,
       coverImage: coverImage ?? this.coverImage,
       policies: policies ?? this.policies,
+      location: location ?? this.location,
       createdAt: createdAt,
       updatedAt: DateTime.now(),
     );
