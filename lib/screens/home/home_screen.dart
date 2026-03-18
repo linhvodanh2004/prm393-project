@@ -58,12 +58,6 @@ class _LazyTabState extends State<_LazyTab>
 class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 0;
 
-  /// Roles where profile is shown as an AppBar icon instead of a footer tab.
-  bool get _profileInAppBar {
-    final r = widget.userModel.role;
-    return r == 'ADMIN' || r == 'HOST';
-  }
-
   void _openProfile() {
     Navigator.push(
       context,
@@ -84,8 +78,8 @@ class _HomeScreenState extends State<HomeScreen> {
         actions: [
           const ChatBadgeIcon(),
           const NotificationBadgeIcon(),
-          if (_profileInAppBar) _buildProfileIcon(),
-          if (_profileInAppBar) const SizedBox(width: 4),
+          _buildProfileAvatar(),
+          const SizedBox(width: 6),
         ],
       ),
       backgroundColor: const Color(0xFF0D0D0D),
@@ -112,23 +106,50 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildProfileIcon() {
-    final photoUrl = FirebaseAuth.instance.currentUser?.photoURL;
+  Widget _buildProfileAvatar() {
+    // Prefer photoURL from Firestore model; fall back to FirebaseAuth in case
+    // the model hasn't been synced yet (e.g. first Google sign-in).
+    final photoUrl = (widget.userModel.photoURL?.isNotEmpty == true)
+        ? widget.userModel.photoURL!
+        : (FirebaseAuth.instance.currentUser?.photoURL ?? '');
+    final initials = _initials(widget.userModel.name);
+    final hasPhoto = photoUrl.isNotEmpty;
+
     return GestureDetector(
       onTap: _openProfile,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
         child: CircleAvatar(
-          radius: 16,
+          radius: 15,
           backgroundColor: const Color(0xFF2A2A2A),
-          backgroundImage:
-              (photoUrl != null && photoUrl.isNotEmpty) ? NetworkImage(photoUrl) : null,
-          child: (photoUrl == null || photoUrl.isEmpty)
-              ? const Icon(Icons.person, color: Colors.white70, size: 18)
+          backgroundImage: hasPhoto ? NetworkImage(photoUrl) : null,
+          onBackgroundImageError: hasPhoto
+              ? (e, st) {} // silently ignore load errors; child shows initials
               : null,
+          child: hasPhoto
+              ? null
+              : initials.isNotEmpty
+                  ? Text(
+                      initials,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 0,
+                      ),
+                    )
+                  : const Icon(Icons.person, color: Colors.white54, size: 16),
         ),
       ),
     );
+  }
+
+  /// Returns up to 2 uppercase initials from a display name.
+  String _initials(String name) {
+    final parts = name.trim().split(RegExp(r'\s+'));
+    if (parts.isEmpty || parts.first.isEmpty) return '';
+    if (parts.length == 1) return parts.first[0].toUpperCase();
+    return '${parts.first[0]}${parts.last[0]}'.toUpperCase();
   }
 
   List<Widget> _buildPagesForRole(String role) {
@@ -152,13 +173,12 @@ class _HomeScreenState extends State<HomeScreen> {
         ];
       case 'USER':
       default:
-        // Profile stays as a footer tab for USER.
+        // Profile is in AppBar for all roles.
         return const [
           ExploreScreen(),
           FavoritesScreen(),
           UserVouchersScreen(),
           UserBookingsScreen(),
-          UserDetailsScreen(),
         ];
     }
   }
@@ -240,11 +260,6 @@ class _HomeScreenState extends State<HomeScreen> {
             icon: Icon(Icons.airplane_ticket_outlined),
             activeIcon: Icon(Icons.airplane_ticket),
             label: 'Chuyến đi',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person_outline),
-            activeIcon: Icon(Icons.person_rounded),
-            label: 'Hồ sơ',
           ),
         ];
     }

@@ -119,6 +119,7 @@ lib/
 │   ├── common/
 │   │   ├── chat_badge_icon.dart         # AppBar icon with unread count badge
 │   │   ├── notification_badge_icon.dart # AppBar icon with unread count badge
+│   │   ├── admin_stat_card.dart         # Uniform stat chip used across admin screens
 │   │   └── address_picker_sheet.dart
 │   └── profile/
 │       ├── host_property_card.dart
@@ -373,6 +374,15 @@ pending ──► confirmed ──► paid ──► completed
 
 ## Capabilities (by role)
 
+### Navigation (all roles)
+
+All roles display a **profile avatar** in the AppBar (top-right), replacing the old footer "Hồ sơ" tab. The avatar shows:
+1. The user's photo from Firestore `photoURL` (falls back to `FirebaseAuth.currentUser.photoURL`)
+2. Two-letter initials if no photo is set (e.g. "Nguyễn Văn A" → "NA")
+3. A generic person icon if no name is available
+
+Tapping the avatar pushes `UserDetailsScreen` as a modal route with a back button.
+
 ### User
 
 **Authentication**
@@ -420,11 +430,19 @@ pending ──► confirmed ──► paid ──► completed
 
 ### Admin
 
-- **User management**: view all users and hosts, lock/unlock accounts (`isActive` flag)
-- **Host request approval**: approve or reject "become a host" requests; approval auto-creates `properties/{hostId}` doc
-- **Room management**: view all rooms with status filter and title/address search; room detail popup
-- **Booking oversight**: view all bookings; force-complete or force-cancel
-- **Revenue**: platform-wide revenue screen with status and date-range filters
+`ManageUsersScreen` has three sub-tabs with live stat bars (`AdminStatCard`):
+
+| Sub-tab | Content |
+|---|---|
+| Người dùng | All users; tap a card to see a detail popup (name, role, email, phone, status, join date); lock/unlock/promote actions via overflow menu |
+| Đối tác | Only HOST-role users; live stat bar; tap a card to fetch and display the host's `properties` doc in a detail popup |
+| Yêu cầu | Pending "become a host" applications; approve (auto-creates `properties/{userId}`) or reject with a reason note |
+
+Other admin screens:
+
+- **Room management** (`AdminRoomsScreen`): stat bar (total / available / pending / inactive); filter by status chip; title+address search; tap a room card for a detail popup; approve or reject rooms
+- **Booking oversight** (`AdminBookingsScreen`): stat bar (total / pending / confirmed / completed / cancelled) in the "Booking" tab; embedded `AdminRevenueScreen` in the "Doanh thu" tab; force-complete or force-cancel any booking
+- **Revenue** (`AdminRevenueScreen`): platform-wide revenue with status and date-range filters; can run standalone or embedded in the Booking tab
 
 ---
 
