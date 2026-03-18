@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/notification_model.dart';
 import '../DTOs/create_notification_dto.dart';
@@ -63,6 +65,30 @@ class NotificationService {
     await batch.commit();
   }
 
+  /// Trigger Push Notification to NestJS Backend
+  Future<void> _triggerPushNotification(String recipientId, String title, String body) async {
+    try {
+      final userDoc = await _firestore.collection('users').doc(recipientId).get();
+      final fcmToken = userDoc.data()?['fcmToken'] as String?;
+      
+      if (fcmToken != null && fcmToken.isNotEmpty) {
+        final url = Uri.parse('https://staybook-server.onrender.com/notifications/send');
+        await http.post(
+          url,
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'token': fcmToken,
+            'title': title,
+            'body': body,
+          }),
+        );
+      }
+    } catch (e) {
+      // Fail silently to not disrupt the main app flow
+      print('Error triggering push notification: $e');
+    }
+  }
+
   /// Create a new notification (used by other services).
   /// Accepts a [CreateNotificationDTO] or the named parameters directly for
   /// backward-compatible internal usage.
@@ -93,6 +119,9 @@ class NotificationService {
       createdAt: DateTime.now(),
     );
     await _firestore.collection('notifications').add(model.toMap());
+    
+    // Trigger real device push via NestJS
+    await _triggerPushNotification(recipientId, title, body);
   }
 
   /// Create a notification from a pre-built [CreateNotificationDTO].
@@ -110,5 +139,8 @@ class NotificationService {
       createdAt: DateTime.now(),
     );
     await _firestore.collection('notifications').add(model.toMap());
+
+    // Trigger real device push via NestJS
+    await _triggerPushNotification(dto.recipientId, dto.title, dto.body);
   }
 }
