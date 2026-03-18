@@ -89,7 +89,7 @@ class _ManageVouchersScreenState extends State<ManageVouchersScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final title = widget.role == 'HOST' ? 'Voucher của tôi' : 'Voucher toàn cầu';
+    final title = widget.role == 'HOST' ? 'Voucher của tôi' : 'Voucher toàn sàn';
     return Scaffold(
       backgroundColor: const Color(0xFF0D0D0D),
       appBar: AppBar(

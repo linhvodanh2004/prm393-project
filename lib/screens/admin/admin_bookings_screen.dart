@@ -3,6 +3,7 @@ import '../../models/booking_model.dart';
 import '../../services/booking_service.dart';
 import '../../DTOs/update_booking_status_dto.dart';
 import '../../utils/format_utils.dart';
+import '../../widgets/common/admin_stat_card.dart';
 import 'admin_revenue_screen.dart';
 
 class AdminBookingsScreen extends StatefulWidget {
@@ -12,11 +13,76 @@ class AdminBookingsScreen extends StatefulWidget {
   State<AdminBookingsScreen> createState() => _AdminBookingsScreenState();
 }
 
-class _AdminBookingsScreenState extends State<AdminBookingsScreen> {
+class _AdminBookingsScreenState extends State<AdminBookingsScreen>
+    with SingleTickerProviderStateMixin {
+  late final TabController _tabController;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFF0D0D0D),
+      appBar: AppBar(
+        title: const Text('Quản lý Booking',
+            style: TextStyle(color: Colors.white)),
+        backgroundColor: const Color(0xFF111111),
+        elevation: 0,
+        centerTitle: true,
+        automaticallyImplyLeading: false,
+        bottom: TabBar(
+          controller: _tabController,
+          indicatorColor: const Color(0xFFFFD700),
+          indicatorWeight: 2.5,
+          labelColor: const Color(0xFFFFD700),
+          unselectedLabelColor: Colors.white54,
+          labelStyle: const TextStyle(
+              fontSize: 13, fontWeight: FontWeight.w600),
+          tabs: const [
+            Tab(text: 'Booking'),
+            Tab(text: 'Doanh thu'),
+          ],
+        ),
+      ),
+      body: TabBarView(
+        controller: _tabController,
+        children: const [
+          _BookingTab(),
+          AdminRevenueScreen(embedded: true),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Booking tab ────────────────────────────────────────────────────────────────
+
+class _BookingTab extends StatefulWidget {
+  const _BookingTab();
+
+  @override
+  State<_BookingTab> createState() => _BookingTabState();
+}
+
+class _BookingTabState extends State<_BookingTab>
+    with AutomaticKeepAliveClientMixin {
   final _service = BookingService();
   String? _filterStatus;
 
-  final _statuses = const [
+  @override
+  bool get wantKeepAlive => true;
+
+  static const _statuses = <String?>[
     null,
     'pending',
     'confirmed',
@@ -26,7 +92,7 @@ class _AdminBookingsScreenState extends State<AdminBookingsScreen> {
     'rejected',
   ];
 
-  final _statusLabels = const {
+  static const _statusLabels = <String?, String>{
     null: 'Tất cả',
     'pending': 'Chờ duyệt',
     'confirmed': 'Đã xác nhận',
@@ -102,35 +168,78 @@ class _AdminBookingsScreenState extends State<AdminBookingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFF0D0D0D),
-      appBar: AppBar(
-        title: const Text('Tất cả Booking',
-            style: TextStyle(color: Colors.white)),
-        backgroundColor: const Color(0xFF111111),
-        elevation: 0,
-        centerTitle: true,
-        actions: [
-          IconButton(
-            tooltip: 'Doanh thu nền tảng',
-            icon: const Icon(Icons.show_chart, color: Colors.white),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const AdminRevenueScreen()),
-              );
-            },
-          ),
-        ],
-      ),
-      body: Column(
-        children: [
-          _buildFilterBar(),
-          Expanded(child: _buildList()),
-        ],
-      ),
+    super.build(context);
+    return StreamBuilder<List<BookingModel>>(
+      stream: _service.getAllBookings(),
+      builder: (ctx, snap) {
+        final allBookings = snap.data ?? [];
+
+        final total = allBookings.length;
+        final pending =
+            allBookings.where((b) => b.status == 'pending').length;
+        final confirmed =
+            allBookings.where((b) => b.status == 'confirmed').length;
+        final completed =
+            allBookings.where((b) => b.status == 'completed').length;
+        final cancelled = allBookings
+            .where((b) =>
+                b.status == 'cancelled' || b.status == 'rejected')
+            .length;
+
+        var filtered = allBookings;
+        if (_filterStatus != null) {
+          filtered =
+              allBookings.where((b) => b.status == _filterStatus).toList();
+        }
+
+        return Column(
+          children: [
+            // ── Stat row ──────────────────────────────────────────
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 10, 12, 4),
+              child: Row(
+                children: [
+                  AdminStatCard(icon: Icons.receipt_long_rounded, value: '$total', label: 'Tổng', color: Colors.blue),
+                  const SizedBox(width: 5),
+                  AdminStatCard(icon: Icons.hourglass_top_rounded, value: '$pending', label: 'Chờ duyệt', color: Colors.orange),
+                  const SizedBox(width: 5),
+                  AdminStatCard(icon: Icons.check_circle_rounded, value: '$confirmed', label: 'Xác nhận', color: Colors.green),
+                  const SizedBox(width: 5),
+                  AdminStatCard(icon: Icons.task_alt_rounded, value: '$completed', label: 'Hoàn thành', color: Colors.teal),
+                  const SizedBox(width: 5),
+                  AdminStatCard(icon: Icons.cancel_rounded, value: '$cancelled', label: 'Đã hủy', color: Colors.redAccent),
+                ],
+              ),
+            ),
+            // ── Filter chips ──────────────────────────────────────
+            _buildFilterBar(),
+            // ── List ──────────────────────────────────────────────
+            Expanded(
+              child: !snap.hasData
+                  ? const Center(
+                      child: CircularProgressIndicator(
+                          color: Color(0xFFFFD700)))
+                  : snap.hasError
+                      ? Center(
+                          child: Text('Lỗi: ${snap.error}',
+                              style: const TextStyle(color: Colors.red)))
+                      : filtered.isEmpty
+                          ? const Center(
+                              child: Text('Không có booking',
+                                  style: TextStyle(color: Colors.white38)))
+                          : ListView.builder(
+                              padding: const EdgeInsets.all(12),
+                              itemCount: filtered.length,
+                              itemBuilder: (_, i) =>
+                                  _buildCard(context, filtered[i]),
+                            ),
+            ),
+          ],
+        );
+      },
     );
   }
+
 
   Widget _buildFilterBar() {
     return SizedBox(
@@ -161,53 +270,16 @@ class _AdminBookingsScreenState extends State<AdminBookingsScreen> {
     );
   }
 
-  Widget _buildList() {
-    return StreamBuilder<List<BookingModel>>(
-      stream: _service.getAllBookings(),
-      builder: (ctx, snap) {
-        if (!snap.hasData) {
-          return const Center(
-              child:
-                  CircularProgressIndicator(color: Color(0xFFFFD700)));
-        }
-        if (snap.hasError) {
-          return Center(
-              child: Text('Lỗi: ${snap.error}',
-                  style: const TextStyle(color: Colors.red)));
-        }
-
-        var bookings = snap.data!;
-        if (_filterStatus != null) {
-          bookings = bookings
-              .where((b) => b.status == _filterStatus)
-              .toList();
-        }
-
-        if (bookings.isEmpty) {
-          return const Center(
-              child: Text('Không có booking',
-                  style: TextStyle(color: Colors.white38)));
-        }
-
-        return ListView.builder(
-          padding: const EdgeInsets.all(12),
-          itemCount: bookings.length,
-          itemBuilder: (_, i) => _buildCard(context, bookings[i]),
-        );
-      },
-    );
-  }
-
   Widget _buildCard(BuildContext context, BookingModel b) {
     final color = _statusColor(b.status);
-    final canCancel =
-        ['pending', 'confirmed'].contains(b.status);
+    final canCancel = ['pending', 'confirmed'].contains(b.status);
     final canComplete = b.status == 'paid';
 
     return Card(
       color: const Color(0xFF1A1A1A),
       margin: const EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      shape:
+          RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Padding(
         padding: const EdgeInsets.all(14),
         child: Column(
@@ -231,7 +303,8 @@ class _AdminBookingsScreenState extends State<AdminBookingsScreen> {
                   decoration: BoxDecoration(
                     color: color.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: color.withValues(alpha: 0.5)),
+                    border:
+                        Border.all(color: color.withValues(alpha: 0.5)),
                   ),
                   child: Text(_statusLabels[b.status] ?? b.status,
                       style: TextStyle(
@@ -242,7 +315,8 @@ class _AdminBookingsScreenState extends State<AdminBookingsScreen> {
               ],
             ),
             const SizedBox(height: 6),
-            Text('Khách: ${b.userName} | Host ID: ${b.hostId.substring(0, 8)}…',
+            Text(
+                'Khách: ${b.userName} | Host ID: ${b.hostId.substring(0, 8)}…',
                 style:
                     const TextStyle(color: Colors.white38, fontSize: 12)),
             Text(
@@ -252,7 +326,8 @@ class _AdminBookingsScreenState extends State<AdminBookingsScreen> {
             const SizedBox(height: 6),
             Text(FormatUtils.vnd(b.totalPrice),
                 style: const TextStyle(
-                    color: Color(0xFFFFD700), fontWeight: FontWeight.bold)),
+                    color: Color(0xFFFFD700),
+                    fontWeight: FontWeight.bold)),
             if (canCancel || canComplete) ...[
               const SizedBox(height: 10),
               Row(
@@ -265,7 +340,8 @@ class _AdminBookingsScreenState extends State<AdminBookingsScreen> {
                       icon: const Icon(Icons.check_circle_outline,
                           size: 14, color: Colors.teal),
                       label: const Text('Hoàn thành',
-                          style: TextStyle(color: Colors.teal, fontSize: 12)),
+                          style:
+                              TextStyle(color: Colors.teal, fontSize: 12)),
                     ),
                   if (canCancel)
                     TextButton.icon(

@@ -262,19 +262,7 @@ class _ManageRoomsScreenState extends State<ManageRoomsScreen> {
                                 ],
                               ),
                               const SizedBox(height: 8),
-                              Row(
-                                children: [
-                                  _buildStatusBadge(room.status),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    'Trạng thái: ${room.status}',
-                                    style: TextStyle(
-                                      color: Colors.white.withOpacity(0.6),
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                ],
-                              ),
+                              _buildStatusBadge(room.status),
                             ],
                           ),
                         ),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../models/room_model.dart';
 import '../../utils/format_utils.dart';
+import '../../widgets/common/admin_stat_card.dart';
 
 class AdminRoomsScreen extends StatefulWidget {
   const AdminRoomsScreen({super.key});
@@ -249,84 +250,109 @@ class _AdminRoomsScreenState extends State<AdminRoomsScreen> {
         elevation: 0,
         centerTitle: true,
       ),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 12, 12, 6),
-            child: TextField(
-              controller: _searchCtrl,
-              style: const TextStyle(color: Colors.white),
-              decoration: InputDecoration(
-                hintText: 'Tìm theo tiêu đề hoặc địa chỉ...',
-                hintStyle: const TextStyle(color: Colors.white38),
-                prefixIcon:
-                    const Icon(Icons.search, color: Colors.white54),
-                suffixIcon: _query.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear, color: Colors.white54),
-                        onPressed: () {
-                          _searchCtrl.clear();
-                          setState(() => _query = '');
-                        },
-                      )
-                    : null,
-                filled: true,
-                fillColor: const Color(0xFF1A1A1A),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
+      body: StreamBuilder<List<RoomModel>>(
+        stream: _streamAll(),
+        builder: (ctx, snap) {
+          final allRooms = snap.data ?? [];
+          for (final r in allRooms) {
+            _prefetchHostAddress(r.hostId);
+          }
+
+          final totalRooms = allRooms.length;
+          final availableCount =
+              allRooms.where((r) => r.status == 'available').length;
+          final pendingCount =
+              allRooms.where((r) => r.status == 'pending_review').length;
+          final maintenanceCount =
+              allRooms.where((r) => r.status == 'maintenance').length;
+          final unavailableCount =
+              allRooms.where((r) => r.status == 'unavailable').length;
+
+          final filtered = allRooms.where(_matches).toList()
+            ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+          return Column(
+            children: [
+              // ── Stat row ──────────────────────────────────────────
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
+                child: Row(
+                  children: [
+                    AdminStatCard(icon: Icons.meeting_room_rounded, value: '$totalRooms', label: 'Tổng', color: Colors.blue),
+                    const SizedBox(width: 6),
+                    AdminStatCard(icon: Icons.check_circle_rounded, value: '$availableCount', label: 'Khả dụng', color: Colors.green),
+                    const SizedBox(width: 6),
+                    AdminStatCard(icon: Icons.pending_rounded, value: '$pendingCount', label: 'Chờ duyệt', color: Colors.orange),
+                    const SizedBox(width: 6),
+                    AdminStatCard(icon: Icons.block_rounded, value: '${maintenanceCount + unavailableCount}', label: 'Không KD', color: Colors.redAccent),
+                  ],
                 ),
               ),
-              onChanged: (v) => setState(() => _query = v),
-            ),
-          ),
-          SizedBox(
-            height: 44,
-            child: ListView(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-              children: [
-                _statusChip('ALL', 'Tất cả'),
-                _statusChip('pending_review', 'Chờ duyệt'),
-                _statusChip('available', 'Khả dụng'),
-                _statusChip('maintenance', 'Bảo trì'),
-                _statusChip('unavailable', 'Không khả dụng'),
-              ],
-            ),
-          ),
-          Expanded(
-            child: StreamBuilder<List<RoomModel>>(
-              stream: _streamAll(),
-              builder: (ctx, snap) {
-                if (!snap.hasData) {
-                  return const Center(
-                      child: CircularProgressIndicator(
-                          color: Color(0xFFFFD700)));
-                }
-                if (snap.hasError) {
-                  return Center(
-                      child: Text('Lỗi: ${snap.error}',
-                          style:
-                              const TextStyle(color: Colors.redAccent)));
-                }
-
-                final rooms = snap.data ?? [];
-                for (final r in rooms) {
-                  _prefetchHostAddress(r.hostId);
-                }
-                final filtered = rooms.where(_matches).toList()
-                  ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
-
-                if (filtered.isEmpty) {
-                  return const Center(
-                    child: Text('Không có phòng phù hợp',
-                        style: TextStyle(color: Colors.white38)),
-                  );
-                }
-
-                return ListView.builder(
-                  padding: const EdgeInsets.all(12),
-                  itemCount: filtered.length,
+              // ── Search ────────────────────────────────────────────
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 4, 12, 6),
+                child: TextField(
+                  controller: _searchCtrl,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: InputDecoration(
+                    hintText: 'Tìm theo tiêu đề hoặc địa chỉ...',
+                    hintStyle: const TextStyle(color: Colors.white38),
+                    prefixIcon:
+                        const Icon(Icons.search, color: Colors.white54),
+                    suffixIcon: _query.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(Icons.clear,
+                                color: Colors.white54),
+                            onPressed: () {
+                              _searchCtrl.clear();
+                              setState(() => _query = '');
+                            },
+                          )
+                        : null,
+                    filled: true,
+                    fillColor: const Color(0xFF1A1A1A),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
+                  onChanged: (v) => setState(() => _query = v),
+                ),
+              ),
+              SizedBox(
+                height: 44,
+                child: ListView(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 12, vertical: 4),
+                  children: [
+                    _statusChip('ALL', 'Tất cả'),
+                    _statusChip('pending_review', 'Chờ duyệt'),
+                    _statusChip('available', 'Khả dụng'),
+                    _statusChip('maintenance', 'Bảo trì'),
+                    _statusChip('unavailable', 'Không khả dụng'),
+                  ],
+                ),
+              ),
+              // ── List ──────────────────────────────────────────────
+              Expanded(
+                child: !snap.hasData
+                    ? const Center(
+                        child: CircularProgressIndicator(
+                            color: Color(0xFFFFD700)))
+                    : snap.hasError
+                        ? Center(
+                            child: Text('Lỗi: ${snap.error}',
+                                style: const TextStyle(
+                                    color: Colors.redAccent)))
+                        : filtered.isEmpty
+                            ? const Center(
+                                child: Text('Không có phòng phù hợp',
+                                    style: TextStyle(
+                                        color: Colors.white38)))
+                            : ListView.builder(
+                                padding: const EdgeInsets.all(12),
+                                itemCount: filtered.length,
                   itemBuilder: (_, i) {
                     final r = filtered[i];
                     final addr = _addressFor(r);
@@ -394,15 +420,17 @@ class _AdminRoomsScreenState extends State<AdminRoomsScreen> {
                         trailing: _statusBadge(r.status),
                       ),
                     );
-                  },
-                );
-              },
-            ),
-          ),
-        ],
+                                },
+                              ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
+
+
 
   Widget _statusChip(String value, String label) {
     final selected = _statusFilter == value;

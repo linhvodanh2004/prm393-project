@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../../models/user_model.dart';
 import '../profile/user_details_screen.dart';
@@ -57,6 +58,19 @@ class _LazyTabState extends State<_LazyTab>
 class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 0;
 
+  /// Roles where profile is shown as an AppBar icon instead of a footer tab.
+  bool get _profileInAppBar {
+    final r = widget.userModel.role;
+    return r == 'ADMIN' || r == 'HOST';
+  }
+
+  void _openProfile() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const UserDetailsScreen()),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final role = widget.userModel.role;
@@ -70,6 +84,8 @@ class _HomeScreenState extends State<HomeScreen> {
         actions: [
           const ChatBadgeIcon(),
           const NotificationBadgeIcon(),
+          if (_profileInAppBar) _buildProfileIcon(),
+          if (_profileInAppBar) const SizedBox(width: 4),
         ],
       ),
       backgroundColor: const Color(0xFF0D0D0D),
@@ -89,12 +105,27 @@ class _HomeScreenState extends State<HomeScreen> {
           selectedItemColor: const Color(0xFFD4A853),
           unselectedItemColor: Colors.white.withValues(alpha: 0.4),
           currentIndex: _currentIndex,
-          onTap: (index) {
-            setState(() {
-              _currentIndex = index;
-            });
-          },
+          onTap: (index) => setState(() => _currentIndex = index),
           items: navItems,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProfileIcon() {
+    final photoUrl = FirebaseAuth.instance.currentUser?.photoURL;
+    return GestureDetector(
+      onTap: _openProfile,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+        child: CircleAvatar(
+          radius: 16,
+          backgroundColor: const Color(0xFF2A2A2A),
+          backgroundImage:
+              (photoUrl != null && photoUrl.isNotEmpty) ? NetworkImage(photoUrl) : null,
+          child: (photoUrl == null || photoUrl.isEmpty)
+              ? const Icon(Icons.person, color: Colors.white70, size: 18)
+              : null,
         ),
       ),
     );
@@ -103,24 +134,25 @@ class _HomeScreenState extends State<HomeScreen> {
   List<Widget> _buildPagesForRole(String role) {
     switch (role) {
       case 'ADMIN':
+        // Profile is in AppBar — no UserDetailsScreen tab.
         return const [
           ManageUsersScreen(),
           AdminRoomsScreen(),
           AdminBookingsScreen(),
           ManageVouchersScreen(role: 'ADMIN'),
-          UserDetailsScreen(),
         ];
       case 'HOST':
+        // Profile is in AppBar — no UserDetailsScreen tab.
         return const [
           HostDashboardScreen(),
           ManageRoomsScreen(),
           HostBookingsScreen(),
           HostCalendarScreen(),
           ManageVouchersScreen(role: 'HOST'),
-          UserDetailsScreen(),
         ];
       case 'USER':
       default:
+        // Profile stays as a footer tab for USER.
         return const [
           ExploreScreen(),
           FavoritesScreen(),
@@ -155,11 +187,6 @@ class _HomeScreenState extends State<HomeScreen> {
             activeIcon: Icon(Icons.local_offer_rounded),
             label: 'Voucher',
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person_outline),
-            activeIcon: Icon(Icons.person_rounded),
-            label: 'Hồ sơ',
-          ),
         ];
 
       case 'HOST':
@@ -188,11 +215,6 @@ class _HomeScreenState extends State<HomeScreen> {
             icon: Icon(Icons.local_offer_outlined),
             activeIcon: Icon(Icons.local_offer_rounded),
             label: 'Voucher',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person_outline),
-            activeIcon: Icon(Icons.person_rounded),
-            label: 'Hồ sơ',
           ),
         ];
 

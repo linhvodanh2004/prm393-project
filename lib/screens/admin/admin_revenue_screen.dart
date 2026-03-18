@@ -5,7 +5,11 @@ import '../../services/booking_service.dart';
 import '../../utils/format_utils.dart';
 
 class AdminRevenueScreen extends StatefulWidget {
-  const AdminRevenueScreen({super.key});
+  /// When [embedded] is true the screen is displayed inside a TabBarView
+  /// (no AppBar / Scaffold wrapper needed from this widget).
+  final bool embedded;
+
+  const AdminRevenueScreen({super.key, this.embedded = false});
 
   @override
   State<AdminRevenueScreen> createState() => _AdminRevenueScreenState();
@@ -82,6 +86,16 @@ class _AdminRevenueScreenState extends State<AdminRevenueScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final body = Column(
+      children: [
+        _buildFilters(),
+        Expanded(child: _buildBody()),
+      ],
+    );
+
+    // When embedded inside a TabBarView, skip the outer Scaffold + AppBar.
+    if (widget.embedded) return body;
+
     return Scaffold(
       backgroundColor: const Color(0xFF0D0D0D),
       appBar: AppBar(
@@ -92,12 +106,7 @@ class _AdminRevenueScreenState extends State<AdminRevenueScreen> {
         centerTitle: true,
         iconTheme: const IconThemeData(color: Colors.white),
       ),
-      body: Column(
-        children: [
-          _buildFilters(),
-          Expanded(child: _buildBody()),
-        ],
-      ),
+      body: body,
     );
   }
 
