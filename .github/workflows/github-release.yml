@@ -5,6 +5,9 @@ on:
     branches:
       - main
 
+permissions:
+  contents: write
+
 jobs:
   build_and_release:
     runs-on: ubuntu-latest
@@ -35,6 +38,6 @@ jobs:
           files: build/app/outputs/flutter-apk/app-release.apk
           draft: false
           prerelease: false
-          replace_assets: true
+#          replace_assets: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
