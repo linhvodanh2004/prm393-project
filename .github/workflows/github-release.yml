@@ -13,43 +13,53 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # 1. Checkout
       - name: Checkout Code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
+      # 2. Setup Flutter (cache luôn cho nhanh)
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
           channel: stable
+          cache: true
 
+      # 3. Restore .env
       - name: Create .env file
         run: echo "${{ secrets.ENV_FILE }}" > .env
 
+      # 4. Build APK
       - name: Build APK
         run: |
           flutter pub get
           flutter build apk --release
 
-      # 🔍 Debug
-      - name: Check APK
-        run: ls -la build/app/outputs/flutter-apk/
+      # 5. Verify APK
+      - name: Verify APK exists
+        run: |
+          ls -la build/app/outputs/flutter-apk/
+          test -f build/app/outputs/flutter-apk/app-release.apk
 
-      # 🧹 Xoá release cũ (nếu có)
-      - name: Delete old release
-        uses: dev-drprasad/delete-tag-and-release@v1
-        with:
-          tag_name: latest
+      # 6. Setup GitHub CLI (đã có sẵn, chỉ cần auth)
+      - name: Authenticate GitHub CLI
+        run: gh auth setup-git
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        continue-on-error: true
 
-      # 🚀 Tạo release mới
-      - name: Create Release
-        uses: softprops/action-gh-release@v1
-        with:
-          tag_name: latest
-          name: Latest APK
-          files: build/app/outputs/flutter-apk/app-release.apk
-          draft: false
-          prerelease: false
+      # 7. Delete old release + tag (an toàn)
+      - name: Delete old release if exists
+        run: |
+          gh release delete latest -y || true
+          git push --delete origin latest || true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # 8. Create new release + upload APK
+      - name: Create new release
+        run: |
+          gh release create latest \
+            build/app/outputs/flutter-apk/app-release.apk \
+            --title "Latest APK" \
+            --notes "Auto build from commit ${{ github.sha }}"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
