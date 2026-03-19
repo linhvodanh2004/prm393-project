@@ -1,0 +1,45 @@
+name: Build APK and Upload to Drive
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build_and_upload:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Bước 1: Kéo source code về máy ảo
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      # Bước 2: Setup Flutter
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+
+      # Bước 3: Tái tạo file .env từ Github Secrets (MỚI)
+      # Lệnh này sẽ bí mật tạo ra file .env nhét ngược vào thư mục chứa code
+      - name: Create .env file
+        run: |
+          cd prm393_project
+          echo "${{ secrets.ENV_FILE }}" > .env
+
+      # Bước 4: Tải thư viện và Build APK
+      - name: Install dependencies & Build APK
+        run: |
+          cd prm393_project
+          flutter pub get
+          flutter build apk --release
+
+      # Bước 5: Upload đè lên Google Drive
+      - name: Upload to Google Drive
+        uses: adityak74/google-drive-upload-git-action@main
+        with:
+          credentials: ${{ secrets.DRIVE_CREDENTIALS }}
+          filename: "prm393_project/build/app/outputs/flutter-apk/app-release.apk"
+          folderId: ${{ secrets.DRIVE_FILE_ID }}
+          name: "app-release.apk"
+          overwrite: "true"
