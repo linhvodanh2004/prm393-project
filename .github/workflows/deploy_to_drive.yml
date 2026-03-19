@@ -1,45 +1,40 @@
-#name: Build APK and Upload to Drive
-#
-#on:
-#  push:
-#    branches:
-#      - main
-#
-#jobs:
-#  build_and_upload:
-#    runs-on: ubuntu-latest
-#
-#    steps:
-#      # 1. Checkout code
-#      - name: Checkout Code
-#        uses: actions/checkout@v3
-#
-#      # 2. Setup Flutter
-#      - name: Setup Flutter
-#        uses: subosito/flutter-action@v2
-#        with:
-#          channel: stable
-#
-#      # 3. Create .env file
-#      - name: Create .env file
-#        run: echo "${{ secrets.ENV_FILE }}" > .env
-#
-#      # 4. Install & build
-#      - name: Install dependencies & Build APK
-#        run: |
-#          flutter pub get
-#          flutter build apk --release
-#
-#      # 🔍 Debug (rất nên giữ)
-#      - name: Check APK exists
-#        run: ls -la build/app/outputs/flutter-apk/
-#
-#      # 5. Upload to Google Drive
-#      - name: Upload to Google Drive
-#        uses: adityak74/google-drive-upload-git-action@main
-#        with:
-#          credentials: ${{ secrets.DRIVE_CREDENTIALS }}
-#          filename: build/app/outputs/flutter-apk/app-release.apk
-#          folderId: ${{ secrets.DRIVE_FOLDER_ID }}
-#          name: app-release.apk
-#          overwrite: "true"
+name: Build APK and Release
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build_and_release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: Create .env file
+        run: echo "${{ secrets.ENV_FILE }}" > .env
+
+      - name: Build APK
+        run: |
+          flutter pub get
+          flutter build apk --release
+
+      # 🔥 Tạo / update release cố định
+      - name: Create or Update Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: latest
+          name: Latest APK
+          files: build/app/outputs/flutter-apk/app-release.apk
+          draft: false
+          prerelease: false
+          replace_assets: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
