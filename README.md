@@ -504,15 +504,15 @@ Daily price overrides are stored at: `rooms/{roomId}/daily_prices/{yyyy-MM-dd}`
 
 ### Environment variables (`.env`)
 
-The app uses `flutter_dotenv`. Required keys:
+The app uses `flutter_dotenv`. Create a file named `.env` in the root directory and add the following keys:
 
-```
-CLOUDINARY_CLOUD_NAME=
-CLOUDINARY_API_KEY=
-CLOUDINARY_API_SECRET=
+```env
+CLOUDINARY_CLOUD_NAME=your_cloudinary_cloud_name
+CLOUDINARY_API_KEY=your_cloudinary_api_key
+CLOUDINARY_API_SECRET=your_cloudinary_api_secret
 ```
 
-> Do not commit `.env` to version control. Add a `.env.example` with placeholder values.
+> Do not commit `.env` to version control (it is ignored in `.gitignore`). Add a `.env.example` with placeholder values to help other developers setup their environments.
 
 ---
 

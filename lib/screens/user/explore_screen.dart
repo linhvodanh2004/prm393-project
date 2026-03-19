@@ -20,15 +20,15 @@ class _ExploreScreenState extends State<ExploreScreen> {
   final _favService = FavoriteService();
   String _searchQuery = '';
   String? _selectedAmenity;
-  double? _maxPrice;
   String? _uid;
   Set<String> _favoriteIds = {};
   final Map<String, String> _hostAddressCache = {};
 
   // For Geospatial Search
-  bool _searchNearMe = false;
+  double? _selectedRadius;
   double? _userLat;
   double? _userLng;
+  final List<double> _radiusOptions = [5.0, 10.0, 20.0, 100.0];
 
   @override
   void initState() {
@@ -50,8 +50,6 @@ class _ExploreScreenState extends State<ExploreScreen> {
     'kitchen',
   ];
 
-  final List<double> _priceOptions = [200000, 500000, 1000000, 2000000];
-
   @override
   void dispose() {
     _searchController.dispose();
@@ -72,56 +70,61 @@ class _ExploreScreenState extends State<ExploreScreen> {
     return null;
   }
 
-  Future<void> _toggleNearMe(bool value) async {
-    if (value) {
-      // Yêu cầu quyền và lấy vị trí
-      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      if (!serviceEnabled) {
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Vui lòng bật Dịch vụ định vị')));
-        return;
-      }
-      LocationPermission permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-        if (permission == LocationPermission.denied) {
-          if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Từ chối quyền định vị')));
+  Future<void> _selectRadius(double? radius) async {
+    if (radius != null) {
+      if (_userLat == null || _userLng == null) {
+        // Yêu cầu quyền và lấy vị trí
+        bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+        if (!serviceEnabled) {
+          if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Vui lòng bật Dịch vụ định vị')));
           return;
         }
-      }
-      if (permission == LocationPermission.deniedForever) {
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Quyền định vị bị từ chối vĩnh viễn.')));
-        return;
-      }
+        LocationPermission permission = await Geolocator.checkPermission();
+        if (permission == LocationPermission.denied) {
+          permission = await Geolocator.requestPermission();
+          if (permission == LocationPermission.denied) {
+            if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Từ chối quyền định vị')));
+            return;
+          }
+        }
+        if (permission == LocationPermission.deniedForever) {
+          if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Quyền định vị bị từ chối vĩnh viễn.')));
+          return;
+        }
 
-      // Đã có quyền, lấy vị trí hiện tại
-      try {
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Đang lấy vị trí...')));
-        Position position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
+        // Đã có quyền, lấy vị trí hiện tại
+        try {
+          if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Đang lấy vị trí...')));
+          Position position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
+          print('Current Location: lat=${position.latitude}, lng=${position.longitude}');
+          setState(() {
+            _userLat = position.latitude;
+            _userLng = position.longitude;
+            _selectedRadius = radius;
+          });
+          if (mounted) ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        } catch (e) {
+          if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Lỗi định vị: $e')));
+        }
+      } else {
         setState(() {
-          _userLat = position.latitude;
-          _userLng = position.longitude;
-          _searchNearMe = true;
+          _selectedRadius = radius;
         });
-        if (mounted) ScaffoldMessenger.of(context).hideCurrentSnackBar();
-      } catch (e) {
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Lỗi định vị: $e')));
       }
     } else {
       setState(() {
-        _searchNearMe = false;
-        _userLat = null;
-        _userLng = null;
+        _selectedRadius = null;
       });
     }
   }
 
   Stream<List<RoomModel>> _buildRoomStream() {
-    if (_searchNearMe && _userLat != null && _userLng != null) {
+    if (_selectedRadius != null && _userLat != null && _userLng != null) {
       // Truy vấn không gian (Geospatial) bằng geoflutterfire_plus
       return RoomService().getRoomsWithinRadius(
         lat: _userLat!,
         lng: _userLng!,
-        radiusInKm: 10.0,
+        radiusInKm: _selectedRadius!,
       );
     }
     
@@ -135,15 +138,33 @@ class _ExploreScreenState extends State<ExploreScreen> {
             .toList());
   }
 
+  String? _getDistanceString(RoomModel room) {
+    if (_userLat == null || _userLng == null) return null;
+    if (room.location == null) return null;
+    final geoPoint = room.location!['geopoint'];
+    if (geoPoint is! GeoPoint) return null;
+
+    final distanceInMeters = Geolocator.distanceBetween(
+      _userLat!,
+      _userLng!,
+      geoPoint.latitude,
+      geoPoint.longitude,
+    );
+
+    if (distanceInMeters < 1000) {
+      return 'Cách đây ${distanceInMeters.toStringAsFixed(0)} m';
+    } else {
+      return 'Cách đây ${(distanceInMeters / 1000).toStringAsFixed(1)} km';
+    }
+  }
+
   List<RoomModel> _applyFilters(List<RoomModel> rooms) {
     return rooms.where((r) {
       final matchesSearch = _searchQuery.isEmpty ||
           r.title.toLowerCase().contains(_searchQuery.toLowerCase());
       final matchesAmenity = _selectedAmenity == null ||
           r.amenities.contains(_selectedAmenity);
-      final matchesPrice =
-          _maxPrice == null || r.basePrice <= _maxPrice!;
-      return matchesSearch && matchesAmenity && matchesPrice;
+      return matchesSearch && matchesAmenity;
     }).toList();
   }
 
@@ -206,23 +227,26 @@ class _ExploreScreenState extends State<ExploreScreen> {
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
         children: [
-          // Nút Tìm phòng Gần đây
-          Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: FilterChip(
-              avatar: Icon(Icons.near_me, size: 16, color: _searchNearMe ? Colors.black : Colors.white70),
-              label: Text('Gần tôi (<10km)',
-                  style: TextStyle(
-                      color: _searchNearMe ? Colors.black : Colors.white70,
-                      fontWeight: _searchNearMe ? FontWeight.bold : FontWeight.normal,
-                      fontSize: 12)),
-              selected: _searchNearMe,
-              selectedColor: const Color(0xFFFFD700),
-              backgroundColor: const Color(0xFF1A1A1A),
-              checkmarkColor: Colors.black,
-              onSelected: _toggleNearMe,
-            ),
-          ),
+          // Radius filter chips
+          ..._radiusOptions.map((r) {
+            final isSelected = _selectedRadius == r;
+            return Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: FilterChip(
+                avatar: isSelected ? const Icon(Icons.near_me, size: 16, color: Colors.black) : const Icon(Icons.near_me, size: 16, color: Colors.white70),
+                label: Text('Gần tôi (<${r.toInt()}km)',
+                    style: TextStyle(
+                        color: isSelected ? Colors.black : Colors.white70,
+                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                        fontSize: 12)),
+                selected: isSelected,
+                selectedColor: const Color(0xFFFFD700),
+                backgroundColor: const Color(0xFF1A1A1A),
+                checkmarkColor: Colors.black,
+                onSelected: (sel) => _selectRadius(sel ? r : null),
+              ),
+            );
+          }),
           // Amenity filter chips
           ..._amenityOptions.map((a) => Padding(
                 padding: const EdgeInsets.only(right: 8),
@@ -241,28 +265,6 @@ class _ExploreScreenState extends State<ExploreScreen> {
                       () => _selectedAmenity = sel ? a : null),
                 ),
               )),
-          // Price filter chips
-          ..._priceOptions.map((p) {
-            final label =
-                '≤ ${(p / 1000).toStringAsFixed(0)}k';
-            return Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: FilterChip(
-                label: Text(label,
-                    style: TextStyle(
-                        color: _maxPrice == p
-                            ? Colors.black
-                            : Colors.white70,
-                        fontSize: 12)),
-                selected: _maxPrice == p,
-                selectedColor: const Color(0xFFFFD700),
-                backgroundColor: const Color(0xFF1A1A1A),
-                checkmarkColor: Colors.black,
-                onSelected: (sel) =>
-                    setState(() => _maxPrice = sel ? p : null),
-              ),
-            );
-          }),
         ],
       ),
     );
@@ -383,31 +385,60 @@ class _ExploreScreenState extends State<ExploreScreen> {
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
                           fontSize: 16)),
-                  FutureBuilder<String?>(
-                    future: _getHostAddress(room.hostId),
-                    builder: (context, snap) {
-                      final address = (snap.data ?? '').trim();
-                      if (address.isEmpty) return const SizedBox.shrink();
-                      return Padding(
-                        padding: const EdgeInsets.only(top: 6),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.location_on_outlined,
-                                size: 14, color: Colors.white38),
-                            const SizedBox(width: 6),
-                            Expanded(
-                              child: Text(
-                                address,
-                                style: const TextStyle(
-                                  color: Colors.white60,
-                                  fontSize: 12,
+                  Builder(
+                    builder: (context) {
+                      final distanceStr = _getDistanceString(room);
+                      if (distanceStr != null) {
+                        return Padding(
+                          padding: const EdgeInsets.only(top: 6),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.near_me_outlined,
+                                  size: 14, color: Colors.white38),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: Text(
+                                  distanceStr,
+                                  style: const TextStyle(
+                                    color: Colors.white60,
+                                    fontSize: 12,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
                               ),
+                            ],
+                          ),
+                        );
+                      }
+
+                      return FutureBuilder<String?>(
+                        future: _getHostAddress(room.hostId),
+                        builder: (context, snap) {
+                          final address = (snap.data ?? '').trim();
+                          if (address.isEmpty) return const SizedBox.shrink();
+                          return Padding(
+                            padding: const EdgeInsets.only(top: 6),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.location_on_outlined,
+                                    size: 14, color: Colors.white38),
+                                const SizedBox(width: 6),
+                                Expanded(
+                                  child: Text(
+                                    address,
+                                    style: const TextStyle(
+                                      color: Colors.white60,
+                                      fontSize: 12,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
                             ),
-                          ],
-                        ),
+                          );
+                        },
                       );
                     },
                   ),
