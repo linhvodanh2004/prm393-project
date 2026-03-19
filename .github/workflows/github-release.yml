@@ -29,21 +29,27 @@ jobs:
           flutter pub get
           flutter build apk --release
 
-      # xoá release cũ
+      # 🔍 Debug
+      - name: Check APK
+        run: ls -la build/app/outputs/flutter-apk/
+
+      # 🧹 Xoá release cũ (nếu có)
       - name: Delete old release
         uses: dev-drprasad/delete-tag-and-release@v1
         with:
           tag_name: latest
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
 
-      # tạo lại release mới
+      # 🚀 Tạo release mới
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
           tag_name: latest
           name: Latest APK
           files: build/app/outputs/flutter-apk/app-release.apk
-
+          draft: false
+          prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
