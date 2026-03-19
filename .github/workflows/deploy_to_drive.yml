@@ -10,34 +10,36 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # Bước 1: Kéo source code về máy ảo
+      # 1. Checkout code
       - name: Checkout Code
         uses: actions/checkout@v3
 
-      # Bước 2: Setup Flutter
+      # 2. Setup Flutter
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          channel: 'stable'
+          channel: stable
 
-      # Bước 3: Tái tạo file .env từ Github Secrets (MỚI)
-      # Lệnh này sẽ bí mật tạo ra file .env nhét ngược vào thư mục chứa code
+      # 3. Create .env file
       - name: Create .env file
-        run: |
-          echo "${{ secrets.ENV_FILE }}" > .env
+        run: echo "${{ secrets.ENV_FILE }}" > .env
 
-      # Bước 4: Tải thư viện và Build APK
+      # 4. Install & build
       - name: Install dependencies & Build APK
         run: |
           flutter pub get
           flutter build apk --release
 
-      # Bước 5: Upload đè lên Google Drive
+      # 🔍 Debug (rất nên giữ)
+      - name: Check APK exists
+        run: ls -la build/app/outputs/flutter-apk/
+
+      # 5. Upload to Google Drive
       - name: Upload to Google Drive
         uses: adityak74/google-drive-upload-git-action@main
         with:
           credentials: ${{ secrets.DRIVE_CREDENTIALS }}
-          filename: "build/app/outputs/flutter-apk/app-release.apk"
-          folderId: ${{ secrets.DRIVE_FILE_ID }}
-          name: "app-release.apk"
+          filename: build/app/outputs/flutter-apk/app-release.apk
+          folderId: ${{ secrets.DRIVE_FOLDER_ID }}
+          name: app-release.apk
           overwrite: "true"
