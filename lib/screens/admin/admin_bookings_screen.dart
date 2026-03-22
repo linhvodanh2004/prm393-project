@@ -4,6 +4,7 @@ import '../../services/booking_service.dart';
 import '../../DTOs/update_booking_status_dto.dart';
 import '../../utils/format_utils.dart';
 import '../../widgets/common/admin_stat_card.dart';
+import '../shared/booking_detail_screen.dart';
 import 'admin_revenue_screen.dart';
 
 class AdminBookingsScreen extends StatefulWidget {
@@ -270,14 +271,33 @@ class _BookingTabState extends State<_BookingTab>
     );
   }
 
+  Widget _buildPaymentMethodBadge(String method) {
+    Color color = method == 'PAYOS' ? Colors.deepPurpleAccent : Colors.teal;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.2),
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: color.withValues(alpha: 0.5)),
+      ),
+      child: Text(method,
+          style: TextStyle(
+              color: color, fontSize: 10, fontWeight: FontWeight.bold)),
+    );
+  }
+
   Widget _buildCard(BuildContext context, BookingModel b) {
     final color = _statusColor(b.status);
     final canCancel = ['pending', 'confirmed'].contains(b.status);
     final canComplete = b.status == 'paid';
 
-    return Card(
-      color: const Color(0xFF1A1A1A),
-      margin: const EdgeInsets.only(bottom: 12),
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(context, MaterialPageRoute(builder: (_) => BookingDetailScreen(bookingId: b.id)));
+      },
+      child: Card(
+        color: const Color(0xFF1A1A1A),
+        margin: const EdgeInsets.only(bottom: 12),
       shape:
           RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Padding(
@@ -324,10 +344,16 @@ class _BookingTabState extends State<_BookingTab>
                 style:
                     const TextStyle(color: Colors.white54, fontSize: 12)),
             const SizedBox(height: 6),
-            Text(FormatUtils.vnd(b.totalPrice),
-                style: const TextStyle(
-                    color: Color(0xFFFFD700),
-                    fontWeight: FontWeight.bold)),
+            Row(
+              children: [
+                Text(FormatUtils.vnd(b.totalPrice),
+                    style: const TextStyle(
+                        color: Color(0xFFFFD700),
+                        fontWeight: FontWeight.bold)),
+                const SizedBox(width: 8),
+                _buildPaymentMethodBadge(b.paymentMethod),
+              ],
+            ),
             if (canCancel || canComplete) ...[
               const SizedBox(height: 10),
               Row(
@@ -358,6 +384,7 @@ class _BookingTabState extends State<_BookingTab>
             ],
           ],
         ),
+      ),
       ),
     );
   }

@@ -6,6 +6,7 @@ import '../../services/booking_service.dart';
 import '../../services/chat_service.dart';
 import '../../DTOs/update_booking_status_dto.dart';
 import '../chat/chat_detail_screen.dart';
+import '../shared/booking_detail_screen.dart';
 import '../../utils/format_utils.dart';
 
 class HostBookingsScreen extends StatefulWidget {
@@ -185,11 +186,30 @@ class _HostBookingsScreenState extends State<HostBookingsScreen>
     );
   }
 
+  Widget _buildPaymentMethodBadge(String method) {
+    Color color = method == 'PAYOS' ? Colors.deepPurpleAccent : Colors.teal;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.2),
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: color.withValues(alpha: 0.5)),
+      ),
+      child: Text(method,
+          style: TextStyle(
+              color: color, fontSize: 10, fontWeight: FontWeight.bold)),
+    );
+  }
+
   Widget _buildBookingCard(BookingModel b,
       {bool showPendingActions = false, bool showCompleteBtn = false}) {
-    return Card(
-      color: const Color(0xFF1A1A1A),
-      margin: const EdgeInsets.only(bottom: 16),
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(context, MaterialPageRoute(builder: (_) => BookingDetailScreen(bookingId: b.id)));
+      },
+      child: Card(
+        color: const Color(0xFF1A1A1A),
+        margin: const EdgeInsets.only(bottom: 16),
       shape:
           RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
@@ -209,10 +229,16 @@ class _HostBookingsScreenState extends State<HostBookingsScreen>
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis),
                 ),
-                Text(FormatUtils.vnd(b.totalPrice),
-                    style: const TextStyle(
-                        color: Color(0xFFD4A853),
-                        fontWeight: FontWeight.bold)),
+                Row(
+                  children: [
+                    Text(FormatUtils.vnd(b.totalPrice),
+                        style: const TextStyle(
+                            color: Color(0xFFD4A853),
+                            fontWeight: FontWeight.bold)),
+                    const SizedBox(width: 8),
+                    _buildPaymentMethodBadge(b.paymentMethod),
+                  ],
+                ),
               ],
             ),
             const SizedBox(height: 10),
@@ -307,6 +333,7 @@ class _HostBookingsScreenState extends State<HostBookingsScreen>
             ),
           ],
         ),
+      ),
       ),
     );
   }

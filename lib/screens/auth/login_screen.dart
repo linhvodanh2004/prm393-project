@@ -86,7 +86,7 @@ class _LoginScreenState extends State<LoginScreen>
       if (!mounted) return;
       setState(() {
         _isLoading = false;
-        _errorMessage = e.toString().replaceFirst('Exception: ', '');
+        _errorMessage = e.toString().replaceFirst(RegExp(r'^Exception:\s*'), '');
       });
     }
   }
@@ -107,7 +107,7 @@ class _LoginScreenState extends State<LoginScreen>
       if (!mounted) return;
       setState(() {
         _isLoading = false;
-        _errorMessage = e.toString().replaceFirst('Exception: ', '');
+        _errorMessage = e.toString().replaceFirst(RegExp(r'^Exception:\s*'), '');
       });
     }
   }

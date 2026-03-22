@@ -15,6 +15,7 @@ import '../../DTOs/send_message_dto.dart';
 import '../../utils/format_utils.dart';
 import '../chat/chat_detail_screen.dart';
 import '../user/room_details_screen.dart';
+import '../../services/medal_service.dart';
 
 class HostPublicProfileScreen extends StatefulWidget {
   final String hostId;
@@ -463,15 +464,33 @@ class _HostPublicProfileScreenState extends State<HostPublicProfileScreen> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(
-                                  title,
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 16,
-                                  ),
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        title,
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 16,
+                                        ),
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                    FutureBuilder<MedalTier>(
+                                      future: MedalService().getMedalTier(widget.hostId, isHost: true),
+                                      builder: (context, snapshot) {
+                                        if (snapshot.hasData && snapshot.data != MedalTier.NONE) {
+                                          return Padding(
+                                            padding: const EdgeInsets.only(left: 8),
+                                            child: MedalService.buildMedalBadge(snapshot.data!),
+                                          );
+                                        }
+                                        return const SizedBox.shrink();
+                                      },
+                                    ),
+                                  ],
                                 ),
                                 _infoRow(
                                   Icons.location_on_outlined,

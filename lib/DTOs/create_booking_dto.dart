@@ -27,6 +27,9 @@ class CreateBookingDTO {
   final String? voucherHostId;
   final double? voucherDiscountAmount;
 
+  final String paymentMethod;
+  final String? paymentLinkId;
+
   const CreateBookingDTO({
     required this.roomId,
     required this.roomTitle,
@@ -44,6 +47,8 @@ class CreateBookingDTO {
     this.voucherScope,
     this.voucherHostId,
     this.voucherDiscountAmount,
+    this.paymentMethod = 'CASH',
+    this.paymentLinkId,
   });
 
   String? validate() {
@@ -74,9 +79,10 @@ class CreateBookingDTO {
       updatedAt: DateTime.now(),
       voucherId: voucherId,
       voucherCode: voucherCode,
-      voucherScope: voucherScope,
       voucherHostId: voucherHostId,
-      voucherDiscountAmount: voucherDiscountAmount,
+      voucherDiscountAmount: voucherDiscountAmount ?? 0.0,
+      paymentMethod: paymentMethod,
+      paymentLinkId: paymentLinkId,
     );
   }
 }

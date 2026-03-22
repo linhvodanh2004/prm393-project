@@ -42,6 +42,36 @@ class AuthService {
   }
   // ----------------------
 
+  // ─── Firebase error → Vietnamese message ─────────────────────────────────
+  static String _firebaseErrorVi(FirebaseAuthException e) {
+    switch (e.code) {
+      case 'user-not-found':
+        return 'Không tìm thấy tài khoản với email này.';
+      case 'wrong-password':
+      case 'invalid-credential':
+        return 'Email hoặc mật khẩu không chính xác.';
+      case 'invalid-email':
+        return 'Địa chỉ email không hợp lệ.';
+      case 'user-disabled':
+        return 'Tài khoản này đã bị vô hiệu hóa.';
+      case 'too-many-requests':
+        return 'Quá nhiều lần thử. Vui lòng thử lại sau vài phút.';
+      case 'operation-not-allowed':
+        return 'Phương thức đăng nhập này chưa được kích hoạt.';
+      case 'user-token-expired':
+      case 'requires-recent-login':
+        return 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.';
+      case 'email-already-in-use':
+        return 'Email này đã được sử dụng cho tài khoản khác.';
+      case 'weak-password':
+        return 'Mật khẩu quá yếu. Vui lòng dùng ít nhất 6 ký tự.';
+      case 'network-request-failed':
+        return 'Không có kết nối mạng. Kiểm tra Wi-Fi hoặc dữ liệu di động.';
+      default:
+        return e.message ?? 'Xảy ra lỗi không xác định. Vui lòng thử lại.';
+    }
+  }
+
   // Sign in with email and password
   Future<User?> signIn(String email, String password) async {
     try {
@@ -53,16 +83,17 @@ class AuthService {
         final userModel = await getUserData(result.user!.uid);
         if (userModel != null && !userModel.isActive) {
           await signOut();
-          throw Exception('Tài khoản của bạn đã bị khóa');
+          throw Exception('Tài khoản của bạn đã bị khóa.');
         }
         if (userModel != null) await saveUserLocally(userModel);
         await FcmService().saveTokenAfterLogin(result.user!.uid);
       }
       return result.user;
     } on FirebaseAuthException catch (e) {
-      throw Exception(e.message ?? 'Đăng nhập thất bại');
+      throw Exception(_firebaseErrorVi(e));
     } catch (e) {
-      throw Exception('Đăng nhập thất bại: $e');
+      if (e is Exception) rethrow;
+      throw Exception('Đăng nhập thất bại. Vui lòng thử lại.');
     }
   }
 
@@ -97,12 +128,14 @@ class AuthService {
       await user.updatePassword(newPassword);
       return null; // Return null on success
     } on FirebaseAuthException catch (e) {
-      if (e.code == 'wrong-password') {
-        return "Mật khẩu hiện tại không đúng";
+      if (e.code == 'wrong-password' || e.code == 'invalid-credential') {
+        return 'Mật khẩu hiện tại không đúng.';
       } else if (e.code == 'weak-password') {
-        return "Mật khẩu mới quá yếu";
+        return 'Mật khẩu mới quá yếu. Dùng ít nhất 6 ký tự.';
+      } else if (e.code == 'requires-recent-login') {
+        return 'Phiên đăng nhập đã hết hạn. Vui lòng đăng xuất và đăng nhập lại.';
       }
-      return e.message;
+      return _firebaseErrorVi(e);
     } catch (e) {
       return "Đã xảy ra lỗi: ${e.toString()}";
     }
@@ -164,9 +197,10 @@ class AuthService {
 
       return result.user;
     } on FirebaseAuthException catch (e) {
-      throw Exception(e.message ?? 'Đăng nhập Google thất bại');
+      throw Exception(_firebaseErrorVi(e));
     } catch (e) {
-      throw Exception('Đăng nhập Google thất bại: $e');
+      if (e is Exception) rethrow;
+      throw Exception('Đăng nhập Google thất bại. Vui lòng thử lại.');
     }
   }
 
@@ -202,9 +236,10 @@ class AuthService {
 
       return result.user;
     } on FirebaseAuthException catch (e) {
-      throw Exception(e.message ?? 'Đăng ký thất bại');
+      throw Exception(_firebaseErrorVi(e));
     } catch (e) {
-      throw Exception('Đăng ký thất bại: $e');
+      if (e is Exception) rethrow;
+      throw Exception('Đăng ký thất bại. Vui lòng thử lại.');
     }
   }
 

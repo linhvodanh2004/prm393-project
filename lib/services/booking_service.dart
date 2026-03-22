@@ -8,7 +8,7 @@ import '../DTOs/update_booking_status_dto.dart';
 const _validTransitions = <String, List<String>>{
   'pending': ['confirmed', 'rejected', 'cancelled'],
   'confirmed': ['paid', 'cancelled', 'completed'],
-  'paid': ['completed'],
+  'paid': ['completed', 'cancelled', 'rejected'],
   // Terminal states — no further transitions allowed
   'completed': [],
   'rejected': [],
@@ -65,6 +65,11 @@ class BookingService {
     return docRef.id;
   }
 
+  /// Xóa booking (dùng khi rollback giao dịch lỗi)
+  Future<void> deleteBooking(String bookingId) async {
+    await _firestore.collection('bookings').doc(bookingId).delete();
+  }
+
   /// Update booking status using [UpdateBookingStatusDTO].
   Future<void> updateBookingStatus(
     String bookingId,
@@ -84,18 +89,25 @@ class BookingService {
           'Không thể chuyển trạng thái từ "${booking.status}" sang "${dto.newStatus}"');
     }
 
-    await _firestore.collection('bookings').doc(bookingId).update({
+    final Map<String, dynamic> updateData = {
       'status': dto.newStatus,
       'updatedAt': FieldValue.serverTimestamp(),
-    });
+    };
+    if (dto.cancelReason != null) {
+      updateData['cancelReason'] = dto.cancelReason;
+    }
+
+    await _firestore.collection('bookings').doc(bookingId).update(updateData);
 
     final statusLabel = _statusLabel(dto.newStatus);
+    final reasonSuffix = dto.cancelReason != null ? '\nLý do: ${dto.cancelReason}' : '';
+
     // Notify user (host-side actions)
     if (dto.actorId == null || dto.actorId == booking.hostId) {
       await NotificationService().createNotification(
         recipientId: booking.userId,
         title: 'Cập nhật trạng thái đặt phòng',
-        body: 'Đơn đặt phòng "${booking.roomTitle}" của bạn $statusLabel.',
+        body: 'Đơn đặt phòng "${booking.roomTitle}" của bạn $statusLabel.$reasonSuffix',
         type: 'booking',
         relatedId: bookingId,
       );
@@ -106,7 +118,7 @@ class BookingService {
       await NotificationService().createNotification(
         recipientId: booking.hostId,
         title: 'Khách đã hủy đặt phòng',
-        body: 'Khách ${booking.userName} đã hủy booking "${booking.roomTitle}".',
+        body: 'Khách ${booking.userName} đã hủy booking "${booking.roomTitle}".$reasonSuffix',
         type: 'booking',
         relatedId: bookingId,
       );

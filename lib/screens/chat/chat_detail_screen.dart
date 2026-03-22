@@ -47,19 +47,35 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     final text = _msgController.text.trim();
     if (text.isEmpty) return;
 
+    _msgController.clear();
+
     try {
       await _chatService.sendMessage(
         SendMessageDTO(roomId: widget.roomId, targetId: widget.targetId, text: text),
       );
-      // Only clear after successful send so user can retry on failure
-      _msgController.clear();
     } catch (e) {
       if (mounted) {
+        _msgController.text = text; // Restore if failed
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Lỗi gửi tin nhắn: $e'),
               behavior: SnackBarBehavior.floating),
         );
       }
+    }
+  }
+
+  bool _isSameDay(DateTime a, DateTime b) {
+    return a.year == b.year && a.month == b.month && a.day == b.day;
+  }
+
+  String _formatDateSeparator(DateTime date) {
+    final now = DateTime.now();
+    if (_isSameDay(date, now)) {
+      return 'Hôm nay';
+    } else if (_isSameDay(date, now.subtract(const Duration(days: 1)))) {
+      return 'Hôm qua';
+    } else {
+      return 'Ngày ${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
     }
   }
 
@@ -131,7 +147,17 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                     final msg = messages[index];
                     final isMe = msg.senderId == _currentId;
 
-                    return Align(
+                    bool showDateSeparator = false;
+                    if (index == messages.length - 1) {
+                      showDateSeparator = true;
+                    } else {
+                      final olderMsg = messages[index + 1];
+                      if (!_isSameDay(msg.createdAt, olderMsg.createdAt)) {
+                        showDateSeparator = true;
+                      }
+                    }
+
+                    final messageBubble = Align(
                       alignment: isMe
                           ? Alignment.centerRight
                           : Alignment.centerLeft,
@@ -181,6 +207,29 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                         ),
                       ),
                     );
+
+                    if (showDateSeparator) {
+                      return Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            margin: const EdgeInsets.only(top: 8, bottom: 20),
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF1A1A1A),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              _formatDateSeparator(msg.createdAt),
+                              style: const TextStyle(color: Colors.white54, fontSize: 11, fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                          messageBubble,
+                        ],
+                      );
+                    }
+
+                    return messageBubble;
                   },
                 );
               },

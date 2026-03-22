@@ -45,7 +45,7 @@ flutter run
 | Charts | fl_chart |
 | Calendar UI | table_calendar |
 
-> **Payments**: COD only. Online payment is not implemented.
+> **Payments**: Supports offline Cash (COD) and Online Bank Transfers via PayOS.
 
 ---
 
@@ -176,6 +176,7 @@ All write operations go through DTOs instead of directly constructing model obje
 | `properties/{hostId}` | Host property/hotel profile (doc ID = hostId) |
 | `vouchers/{voucherId}` | Discount voucher definitions |
 | `voucher_redemptions/{redemptionId}` | Per-user voucher usage tracking |
+| `withdrawal_requests/{requestId}` | Host requests to withdraw funds |
 
 ### `users/{uid}`
 
@@ -193,6 +194,8 @@ All write operations go through DTOs instead of directly constructing model obje
   "isActive": true,
   "favorites": ["roomId"],
   "fcmToken": "string?",
+  "guestBookingCount": 0,
+  "hostBookingCount": 0,
   "createdAt": "Timestamp"
 }
 ```
@@ -242,7 +245,12 @@ All write operations go through DTOs instead of directly constructing model obje
   "guestCount": 1,
   "totalPrice": 240000.0,
   "status": "pending | confirmed | rejected | paid | completed | cancelled",
+  "paymentMethod": "CASH | PAYOS",
+  "paymentLinkId": "string?",
+  "orderCode": 123456,
   "note": "string?",
+  "cancelReason": "string?",
+  "refundStatus": "pending | approved | rejected?",
   "createdAt": "Timestamp",
   "updatedAt": "Timestamp",
 
@@ -301,6 +309,24 @@ pending ──► confirmed ──► paid ──► completed
   "userId": "string",
   "bookingId": "string",
   "createdAt": "Timestamp"
+}
+```
+
+### `withdrawal_requests/{requestId}`
+
+```json
+{
+  "hostId": "string",
+  "bookingId": "string?",
+  "amount": 200000,
+  "bankCode": "string",
+  "bankAccount": "string",
+  "accountName": "string",
+  "type": "withdrawal | refund",
+  "status": "pending | approved | rejected",
+  "rejectionReason": "string?",
+  "createdAt": "Timestamp",
+  "updatedAt": "Timestamp"
 }
 ```
 
@@ -392,8 +418,10 @@ Tapping the avatar pushes `UserDetailsScreen` as a modal route with a back butto
 
 **Explore & Discovery**
 - Browse available rooms (status = `available` only)
-- Filter by amenities and price
+- Filter by distance radius (`<5km`, `<10km`, `<20km`) using geolocation
+- Filter by price per hour ranges
 - Search by room title and address
+- View host's property address / estimated distance on room cards
 - View host's property address on room cards
 
 **Room Details & Booking**
@@ -403,7 +431,10 @@ Tapping the avatar pushes `UserDetailsScreen` as a modal route with a back butto
 - Price calculation: hour-by-hour, respecting `daily_prices` overrides per date
 - Blocked date detection: if any hour in the selected range falls on a blocked day, booking is rejected with a clear error
 - Apply voucher code during checkout (validated against scope, expiry, per-user limit, min subtotal)
-- Booking status tracking: Pending → Confirmed → Completed / Cancelled
+- **Payment Method**: Support choosing between Tiền mặt (CASH) and Thanh toán trực tuyến (PAYOS). For PayOS, securely retrieves checkout link from the backend and launches the browser to handle the bank transfer.
+- Booking status tracking: Pending → Confirmed → Paid → Completed / Cancelled
+- **Cancellation & Refunds**: Cancel bookings using predefined reasons. Cancelling a paid PAYOS booking automatically prompts the user for bank details to submit a `refund` request to the Admin.
+- **Reward Medals**: Displays badges (COPPER, BRONZE, SILVER, GOLD) reflecting User/Host reputation based on their total `completed` bookings.
 
 **Vouchers (dedicated tab)**
 - Browse active global vouchers ("Toàn sàn") and host-specific vouchers ("Đối tác")
@@ -422,9 +453,9 @@ Tapping the avatar pushes `UserDetailsScreen` as a modal route with a back butto
 ### Host
 
 - **Room management**: create, edit, delete rooms via `CreateRoomDTO` / `UpdateRoomDTO`
-- **Booking operations**: confirm, reject, complete guest bookings; direct chat with guests
+- **Booking operations**: confirm, complete guest bookings; reject/cancel with predefined reasons; direct chat with guests
 - **Calendar/pricing**: set per-day price overrides and block dates via `SetDailyPriceDTO`; pricing is hourly
-- **Revenue dashboard**: monthly/yearly stats with bar chart (confirmed + paid + completed bookings)
+- **Revenue & Withdrawal Hub**: Advanced dashboard displaying accurate available balances exclusively derived from platform-completed PAYOS bookings. Functionality to submit bank transfer withdrawal requests to Admin.
 - **Voucher management**: create host-scoped vouchers (code is auto-generated)
 - **Property profile**: update hotel name, description, address, cover image via `SavePropertyDTO`
 
@@ -443,6 +474,7 @@ Other admin screens:
 - **Room management** (`AdminRoomsScreen`): stat bar (total / available / pending / inactive); filter by status chip; title+address search; tap a room card for a detail popup; approve or reject rooms
 - **Booking oversight** (`AdminBookingsScreen`): stat bar (total / pending / confirmed / completed / cancelled) in the "Booking" tab; embedded `AdminRevenueScreen` in the "Doanh thu" tab; force-complete or force-cancel any booking
 - **Revenue** (`AdminRevenueScreen`): platform-wide revenue with status and date-range filters; can run standalone or embedded in the Booking tab
+- **Withdrawal Approvals & Refunds** (`AdminPaymentsScreen`): View incoming payout requests from Hosts and refund requests from Users. Approve or reject with detailed predefined reasons (with auto-push notifications and balance rollbacks).
 
 ---
 
@@ -510,6 +542,7 @@ The app uses `flutter_dotenv`. Create a file named `.env` in the root directory 
 CLOUDINARY_CLOUD_NAME=your_cloudinary_cloud_name
 CLOUDINARY_API_KEY=your_cloudinary_api_key
 CLOUDINARY_API_SECRET=your_cloudinary_api_secret
+API_URL=https://staybook-server.onrender.com
 ```
 
 > Do not commit `.env` to version control (it is ignored in `.gitignore`). Add a `.env.example` with placeholder values to help other developers setup their environments.

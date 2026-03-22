@@ -1,14 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import '../../models/room_model.dart';
 import '../../models/daily_price_model.dart';
+import '../../services/auth_service.dart';
 import '../../services/booking_service.dart';
 import '../../services/property_service.dart';
 import '../../services/room_service.dart';
 import '../../services/voucher_service.dart';
+import '../../services/payment_service.dart';
 import '../../DTOs/create_booking_dto.dart';
 import '../../utils/format_utils.dart';
 import '../profile/host_public_profile_screen.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'user_bookings_screen.dart';
 
 class RoomDetailsScreen extends StatefulWidget {
   final RoomModel room;
@@ -30,6 +35,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
   double _calculatedSubtotal = 0;
   int _calculatedHours = 0;
   bool _submitting = false;
+  String _paymentMethod = 'CASH';
   int _imageIndex = 0;
   final PageController _pageController = PageController();
 
@@ -54,9 +60,6 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
     _voucherController.dispose();
     super.dispose();
   }
-
-
-
 
   double get _subtotal => _calculatedSubtotal;
 
@@ -286,8 +289,10 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
       );
 
       if (voucher == null) {
-        setState(() => _voucherError =
-            'Mã không hợp lệ/không đủ điều kiện hoặc đã được sử dụng');
+        setState(
+          () => _voucherError =
+              'Mã không hợp lệ/không đủ điều kiện hoặc đã được sử dụng',
+        );
         return;
       }
 
@@ -324,7 +329,8 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
     }
     if (_hasBlockedSlot) {
       _showSnack(
-          'Khoảng thời gian chọn có ngày đang bị khóa, không thể đặt phòng');
+        'Khoảng thời gian chọn có ngày đang bị khóa, không thể đặt phòng',
+      );
       return;
     }
     if (_pricingError != null) {
@@ -334,11 +340,14 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
 
     setState(() => _submitting = true);
     try {
+      final userModel = await AuthService().getLocalUser();
+      final userName = userModel?.name ?? user.displayName ?? user.email ?? 'Khách';
+
       final dto = CreateBookingDTO(
         roomId: widget.room.id,
         roomTitle: widget.room.title,
         userId: user.uid,
-        userName: user.displayName ?? user.email ?? 'Khách',
+        userName: userName,
         hostId: widget.room.hostId,
         checkIn: _checkIn!,
         checkOut: _checkOut!,
@@ -349,11 +358,30 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
         voucherCode: _appliedVoucherCode,
         voucherScope: _appliedVoucherScope,
         voucherHostId: _appliedVoucherHostId,
-        voucherDiscountAmount:
-            _voucherDiscountAmount > 0 ? _voucherDiscountAmount : null,
+        voucherDiscountAmount: _voucherDiscountAmount > 0
+            ? _voucherDiscountAmount
+            : null,
+        paymentMethod: _paymentMethod,
       );
 
       final bookingId = await BookingService().createBooking(dto);
+
+      if (_paymentMethod == 'PAYOS') {
+        try {
+          final checkoutUrl = await PaymentService().createPaymentLink(
+            bookingId: bookingId,
+            amount: _totalAfterDiscount,
+          );
+          await launchUrl(
+            Uri.parse(checkoutUrl),
+            mode: LaunchMode.externalApplication,
+          );
+        } catch (e) {
+          await BookingService().deleteBooking(bookingId);
+          _showSnack('Lỗi tạo link thanh toán: $e', color: Colors.orange);
+          return;
+        }
+      }
 
       // Mark voucher as redeemed so user can't reuse it after a successful booking creation.
       if (_appliedVoucherId != null && _appliedVoucherId!.isNotEmpty) {
@@ -369,9 +397,16 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
       }
 
       if (mounted) {
-        _showSnack('Đặt phòng thành công! Chờ xác nhận từ đối tác.',
-            color: Colors.green);
-        Navigator.pop(context);
+        _showSnack(
+          'Đang mở cổng thanh toán. Đơn sẽ cập nhật sau khi chuyển tiền!',
+          color: Colors.green,
+        );
+        Navigator.pop(context); // Close checkout modal
+        // Navigate to User Bookings list
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const UserBookingsScreen()),
+        );
       }
     } catch (e) {
       if (mounted) {
@@ -385,9 +420,10 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
   void _showSnack(String msg, {Color? color}) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-          content: Text(msg),
-          backgroundColor: color,
-          behavior: SnackBarBehavior.floating),
+        content: Text(msg),
+        backgroundColor: color,
+        behavior: SnackBarBehavior.floating,
+      ),
     );
   }
 
@@ -418,6 +454,8 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
                     _buildPriceSummary(),
                     const SizedBox(height: 12),
                     _buildVoucherField(),
+                    const SizedBox(height: 16),
+                    _buildPaymentMethodSelector(),
                   ],
                   const SizedBox(height: 24),
                   _buildBookButton(),
@@ -458,8 +496,11 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
         background: images.isEmpty
             ? Container(
                 color: const Color(0xFF1A1A1A),
-                child: const Icon(Icons.meeting_room,
-                    color: Colors.white24, size: 64),
+                child: const Icon(
+                  Icons.meeting_room,
+                  color: Colors.white24,
+                  size: 64,
+                ),
               )
             : Stack(
                 children: [
@@ -471,9 +512,12 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
                       images[i],
                       fit: BoxFit.cover,
                       errorBuilder: (context, error, stackTrace) => Container(
-                          color: const Color(0xFF1A1A1A),
-                          child: const Icon(Icons.broken_image,
-                              color: Colors.white24)),
+                        color: const Color(0xFF1A1A1A),
+                        child: const Icon(
+                          Icons.broken_image,
+                          color: Colors.white24,
+                        ),
+                      ),
                     ),
                   ),
                   if (images.length > 1)
@@ -509,11 +553,14 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(widget.room.title,
-            style: const TextStyle(
-                color: Colors.white,
-                fontSize: 22,
-                fontWeight: FontWeight.bold)),
+        Text(
+          widget.room.title,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 22,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
         const SizedBox(height: 4),
         Text(
           '${FormatUtils.vnd(widget.room.basePrice)} / giờ (giá cơ bản)',
@@ -528,8 +575,11 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
             if (address.isEmpty) return const SizedBox.shrink();
             return Row(
               children: [
-                const Icon(Icons.location_on_outlined,
-                    size: 16, color: Colors.white38),
+                const Icon(
+                  Icons.location_on_outlined,
+                  size: 16,
+                  color: Colors.white38,
+                ),
                 const SizedBox(width: 6),
                 Expanded(
                   child: Text(
@@ -553,18 +603,20 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
       spacing: 8,
       runSpacing: 8,
       children: widget.room.amenities
-          .map((a) => Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF1A1A1A),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: Colors.white12),
-                ),
-                child: Text(a,
-                    style:
-                        const TextStyle(color: Colors.white70, fontSize: 12)),
-              ))
+          .map(
+            (a) => Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: const Color(0xFF1A1A1A),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: Colors.white12),
+              ),
+              child: Text(
+                a,
+                style: const TextStyle(color: Colors.white70, fontSize: 12),
+              ),
+            ),
+          )
           .toList(),
     );
   }
@@ -573,14 +625,19 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Mô tả',
-            style: TextStyle(
-                color: Colors.white,
-                fontSize: 16,
-                fontWeight: FontWeight.bold)),
+        const Text(
+          'Mô tả',
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
         const SizedBox(height: 8),
-        Text(widget.room.description,
-            style: const TextStyle(color: Colors.white70, height: 1.5)),
+        Text(
+          widget.room.description,
+          style: const TextStyle(color: Colors.white70, height: 1.5),
+        ),
       ],
     );
   }
@@ -589,11 +646,14 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Chọn thời gian',
-            style: TextStyle(
-                color: Colors.white,
-                fontSize: 16,
-                fontWeight: FontWeight.bold)),
+        const Text(
+          'Chọn thời gian',
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
         const SizedBox(height: 8),
         Row(
           children: [
@@ -610,25 +670,33 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
                   child: _loadingPrices
                       ? const Center(
                           child: SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Color(0xFFFFD700))))
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Color(0xFFFFD700),
+                            ),
+                          ),
+                        )
                       : Row(
                           children: [
-                            const Icon(Icons.login,
-                                color: Color(0xFFFFD700), size: 18),
+                            const Icon(
+                              Icons.login,
+                              color: Color(0xFFFFD700),
+                              size: 18,
+                            ),
                             const SizedBox(width: 10),
                             Expanded(
                               child: _checkIn == null
-                                  ? const Text('Check-in',
-                                      style:
-                                          TextStyle(color: Colors.white54))
+                                  ? const Text(
+                                      'Check-in',
+                                      style: TextStyle(color: Colors.white54),
+                                    )
                                   : Text(
                                       FormatUtils.dateTimeVi(_checkIn!),
                                       style: const TextStyle(
-                                          color: Colors.white),
+                                        color: Colors.white,
+                                      ),
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                     ),
@@ -652,25 +720,33 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
                   child: _loadingPrices
                       ? const Center(
                           child: SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Color(0xFFFFD700))))
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Color(0xFFFFD700),
+                            ),
+                          ),
+                        )
                       : Row(
                           children: [
-                            const Icon(Icons.logout,
-                                color: Color(0xFFFFD700), size: 18),
+                            const Icon(
+                              Icons.logout,
+                              color: Color(0xFFFFD700),
+                              size: 18,
+                            ),
                             const SizedBox(width: 10),
                             Expanded(
                               child: _checkOut == null
-                                  ? const Text('Check-out',
-                                      style:
-                                          TextStyle(color: Colors.white54))
+                                  ? const Text(
+                                      'Check-out',
+                                      style: TextStyle(color: Colors.white54),
+                                    )
                                   : Text(
                                       FormatUtils.dateTimeVi(_checkOut!),
                                       style: const TextStyle(
-                                          color: Colors.white),
+                                        color: Colors.white,
+                                      ),
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                     ),
@@ -703,20 +779,28 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
   Widget _buildGuestSelector() {
     return Row(
       children: [
-        const Text('Số khách:',
-            style: TextStyle(color: Colors.white, fontSize: 15)),
+        const Text(
+          'Số khách:',
+          style: TextStyle(color: Colors.white, fontSize: 15),
+        ),
         const Spacer(),
         IconButton(
-          icon: const Icon(Icons.remove_circle_outline,
-              color: Color(0xFFFFD700)),
-          onPressed:
-              _guestCount > 1 ? () => setState(() => _guestCount--) : null,
+          icon: const Icon(
+            Icons.remove_circle_outline,
+            color: Color(0xFFFFD700),
+          ),
+          onPressed: _guestCount > 1
+              ? () => setState(() => _guestCount--)
+              : null,
         ),
-        Text('$_guestCount',
-            style: const TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.bold)),
+        Text(
+          '$_guestCount',
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
         IconButton(
           icon: const Icon(Icons.add_circle_outline, color: Color(0xFFFFD700)),
           onPressed: () => setState(() => _guestCount++),
@@ -735,32 +819,45 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
       child: Column(
         children: [
           _priceRow(
-              '$_hours giờ × ${FormatUtils.vnd(widget.room.basePrice)}',
-              _subtotal),
+            '$_hours giờ × ${FormatUtils.vnd(widget.room.basePrice)}',
+            _subtotal,
+          ),
           if (_voucherDiscountAmount > 0)
-            _priceRow('Giảm giá ($_appliedVoucherCode)',
-                -_voucherDiscountAmount,
-                color: Colors.green),
+            _priceRow(
+              'Giảm giá ($_appliedVoucherCode)',
+              -_voucherDiscountAmount,
+              color: Colors.green,
+            ),
           const Divider(color: Colors.white12, height: 20),
-          _priceRow('Tổng cộng', _totalAfterDiscount,
-              style: const TextStyle(
-                  color: Color(0xFFFFD700),
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16)),
+          _priceRow(
+            'Tổng cộng',
+            _totalAfterDiscount,
+            style: const TextStyle(
+              color: Color(0xFFFFD700),
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _priceRow(String label, double amount,
-      {Color? color, TextStyle? style}) {
+  Widget _priceRow(
+    String label,
+    double amount, {
+    Color? color,
+    TextStyle? style,
+  }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 3),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label,
-              style: style ?? TextStyle(color: color ?? Colors.white70)),
+          Text(
+            label,
+            style: style ?? TextStyle(color: color ?? Colors.white70),
+          ),
           Text(
             '${amount < 0 ? '-' : ''}${FormatUtils.vnd(amount.abs())}',
             style: style ?? TextStyle(color: color ?? Colors.white),
@@ -785,8 +882,9 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
             const SizedBox(width: 8),
             Expanded(
               child: Text(
-                  'Mã "$_appliedVoucherCode" đã được áp dụng',
-                  style: const TextStyle(color: Colors.green)),
+                'Mã "$_appliedVoucherCode" đã được áp dụng',
+                style: const TextStyle(color: Colors.green),
+              ),
             ),
             GestureDetector(
               onTap: () => setState(_clearVoucher),
@@ -800,9 +898,10 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Mã giảm giá',
-            style: TextStyle(
-                color: Colors.white, fontWeight: FontWeight.bold)),
+        const Text(
+          'Mã giảm giá',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
         const SizedBox(height: 8),
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -822,35 +921,104 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
                     borderSide: BorderSide.none,
                   ),
                   errorText: _voucherError,
-                  errorStyle:
-                      const TextStyle(color: Colors.orangeAccent),
+                  errorStyle: const TextStyle(color: Colors.orangeAccent),
                 ),
               ),
             ),
             const SizedBox(width: 10),
             Padding(
-              padding: EdgeInsets.only(
-                  top: _voucherError != null ? 0 : 0),
+              padding: EdgeInsets.only(top: _voucherError != null ? 0 : 0),
               child: ElevatedButton(
                 onPressed: _checkingVoucher ? null : _applyVoucher,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFFFFD700),
                   foregroundColor: Colors.black,
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 14),
+                    horizontal: 16,
+                    vertical: 14,
+                  ),
                   shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10)),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
                 ),
                 child: _checkingVoucher
                     ? const SizedBox(
                         width: 18,
                         height: 18,
                         child: CircularProgressIndicator(
-                            strokeWidth: 2, color: Colors.black))
+                          strokeWidth: 2,
+                          color: Colors.black,
+                        ),
+                      )
                     : const Text('Áp dụng'),
               ),
             ),
           ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPaymentMethodSelector() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Phương thức thanh toán',
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          decoration: BoxDecoration(
+            color: const Color(0xFF1A1A1A),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.white12),
+          ),
+          child: Column(
+            children: [
+              RadioListTile<String>(
+                title: const Row(
+                  children: [
+                    Icon(
+                      Icons.payments_outlined,
+                      color: Colors.green,
+                      size: 22,
+                    ),
+                    SizedBox(width: 8),
+                    Text(
+                      'Tiền mặt',
+                      style: TextStyle(color: Colors.white),
+                    ),
+                  ],
+                ),
+                value: 'CASH',
+                groupValue: _paymentMethod,
+                activeColor: const Color(0xFFFFD700),
+                onChanged: (val) => setState(() => _paymentMethod = val!),
+              ),
+              const Divider(color: Colors.white12, height: 1),
+              RadioListTile<String>(
+                title: Row(
+                  children: [
+                    SvgPicture.asset('assets/icons/payos.svg', height: 20),
+                    const SizedBox(width: 8),
+                    const Text(
+                      'PayOS',
+                      style: TextStyle(color: Colors.white),
+                    ),
+                  ],
+                ),
+                value: 'PAYOS',
+                groupValue: _paymentMethod,
+                activeColor: const Color(0xFFFFD700),
+                onChanged: (val) => setState(() => _paymentMethod = val!),
+              ),
+            ],
+          ),
         ),
       ],
     );
@@ -861,12 +1029,12 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
     final canPickTime = isAvailable;
     final canBook =
         isAvailable &&
-            !_loadingPrices &&
-            !_hasBlockedSlot &&
-            _pricingError == null &&
-            _checkIn != null &&
-            _checkOut != null &&
-            _hours >= 1;
+        !_loadingPrices &&
+        !_hasBlockedSlot &&
+        _pricingError == null &&
+        _checkIn != null &&
+        _checkOut != null &&
+        _hours >= 1;
     return SizedBox(
       width: double.infinity,
       child: ElevatedButton(
@@ -877,26 +1045,32 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> {
           disabledBackgroundColor: Colors.grey[800],
           padding: const EdgeInsets.symmetric(vertical: 16),
           shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(14)),
+            borderRadius: BorderRadius.circular(14),
+          ),
         ),
         child: _submitting
             ? const SizedBox(
                 height: 20,
                 width: 20,
                 child: CircularProgressIndicator(
-                    strokeWidth: 2, color: Colors.black))
+                  strokeWidth: 2,
+                  color: Colors.black,
+                ),
+              )
             : Text(
                 canBook
                     ? 'Đặt phòng — ${FormatUtils.vnd(_totalAfterDiscount)}'
                     : (_loadingPrices
-                        ? 'Đang tính giá...'
-                        : _hasBlockedSlot
-                            ? 'Khoảng thời gian bị khóa'
-                            : (canPickTime
-                        ? 'Chọn thời gian để đặt phòng'
-                        : 'Phòng hiện không khả dụng')),
+                          ? 'Đang tính giá...'
+                          : _hasBlockedSlot
+                          ? 'Khoảng thời gian bị khóa'
+                          : (canPickTime
+                                ? 'Chọn thời gian để đặt phòng'
+                                : 'Phòng hiện không khả dụng')),
                 style: const TextStyle(
-                    fontWeight: FontWeight.bold, fontSize: 16),
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
               ),
       ),
     );

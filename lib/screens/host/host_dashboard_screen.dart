@@ -4,7 +4,9 @@ import 'package:fl_chart/fl_chart.dart';
 
 import '../../models/booking_model.dart';
 import '../../services/revenue_service.dart';
+import '../../services/withdrawal_service.dart';
 import '../../utils/format_utils.dart';
+import 'host_withdrawal_screen.dart';
 
 class HostDashboardScreen extends StatefulWidget {
   const HostDashboardScreen({super.key});
@@ -178,6 +180,100 @@ class _HostDashboardScreenState extends State<HostDashboardScreen> {
                     ],
                   ),
                 ),
+                const SizedBox(height: 16),
+                
+                // Host Wallet Section
+                const Text(
+                  'Ví Chủ Nhà (Thanh toán qua PAYOS)',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                FutureBuilder<Map<String, double>>(
+                  future: WithdrawalService().getHostRevenueStats(_hostId),
+                  builder: (context, statSnap) {
+                    if (statSnap.connectionState == ConnectionState.waiting) {
+                      return const Center(
+                          child: CircularProgressIndicator(color: Color(0xFFD4A853)));
+                    }
+                    final stats = statSnap.data ?? {};
+                    final payosRev = stats['payosRevenue'] ?? 0.0;
+                    final withdrawn = stats['totalWithdrawn'] ?? 0.0;
+                    final avail = stats['availableBalance'] ?? 0.0;
+
+                    return Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1A1A1A),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: Colors.white12),
+                      ),
+                      child: Column(
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text('Tổng thu PAYOS', style: TextStyle(color: Colors.white70)),
+                              Text(FormatUtils.vnd(payosRev),
+                                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text('Đã rút / Đang chờ', style: TextStyle(color: Colors.white70)),
+                              Text(FormatUtils.vnd(withdrawn),
+                                  style: const TextStyle(color: Colors.orangeAccent)),
+                            ],
+                          ),
+                          const Divider(color: Colors.white24, height: 24),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text('Số dư khả dụng', style: TextStyle(color: Colors.white70)),
+                              Text(FormatUtils.vnd(avail),
+                                  style: const TextStyle(
+                                      color: Colors.greenAccent,
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold)),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton.icon(
+                              onPressed: () async {
+                                await Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => const HostWithdrawalScreen(),
+                                  ),
+                                );
+                                setState(() {}); // Refresh stats after return
+                              },
+                              icon: const Icon(Icons.account_balance_wallet_outlined),
+                              label: const Text('Rút doanh thu',
+                                  style: TextStyle(fontWeight: FontWeight.bold)),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFFD4A853),
+                                foregroundColor: Colors.black,
+                                padding: const EdgeInsets.symmetric(vertical: 14),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+
                 const SizedBox(height: 32),
                 const Text(
                   'Biểu đồ doanh thu từng tháng',

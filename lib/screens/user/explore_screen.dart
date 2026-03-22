@@ -8,6 +8,13 @@ import '../../services/room_service.dart';
 import 'room_details_screen.dart';
 import '../../utils/format_utils.dart';
 
+class PriceRange {
+  final String label;
+  final double? min;
+  final double? max;
+  PriceRange(this.label, this.min, this.max);
+}
+
 class ExploreScreen extends StatefulWidget {
   const ExploreScreen({super.key});
 
@@ -19,7 +26,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
   final TextEditingController _searchController = TextEditingController();
   final _favService = FavoriteService();
   String _searchQuery = '';
-  String? _selectedAmenity;
+  PriceRange? _selectedPriceRange;
   String? _uid;
   Set<String> _favoriteIds = {};
   final Map<String, String> _hostAddressCache = {};
@@ -28,7 +35,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
   double? _selectedRadius;
   double? _userLat;
   double? _userLng;
-  final List<double> _radiusOptions = [5.0, 10.0, 20.0, 100.0];
+  final List<double> _radiusOptions = [5.0, 10.0, 20.0];
 
   @override
   void initState() {
@@ -41,13 +48,10 @@ class _ExploreScreenState extends State<ExploreScreen> {
     }
   }
 
-  final List<String> _amenityOptions = [
-    'wifi',
-    'pool',
-    'ac',
-    'tv',
-    'parking',
-    'kitchen',
+  final List<PriceRange> _priceRanges = [
+    PriceRange('100k - 200k', 100000, 200000),
+    PriceRange('200k - 500k', 200000, 500000),
+    PriceRange('> 500k', 500000, null),
   ];
 
   @override
@@ -59,8 +63,10 @@ class _ExploreScreenState extends State<ExploreScreen> {
   Future<String?> _getHostAddress(String hostId) async {
     final cached = _hostAddressCache[hostId];
     if (cached != null) return cached;
-    final doc =
-        await FirebaseFirestore.instance.collection('properties').doc(hostId).get();
+    final doc = await FirebaseFirestore.instance
+        .collection('properties')
+        .doc(hostId)
+        .get();
     final data = doc.data();
     final address = (data?['address'] ?? '').toString().trim();
     if (address.isNotEmpty) {
@@ -76,27 +82,45 @@ class _ExploreScreenState extends State<ExploreScreen> {
         // Yêu cầu quyền và lấy vị trí
         bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
         if (!serviceEnabled) {
-          if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Vui lòng bật Dịch vụ định vị')));
+          if (mounted)
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Vui lòng bật Dịch vụ định vị')),
+            );
           return;
         }
         LocationPermission permission = await Geolocator.checkPermission();
         if (permission == LocationPermission.denied) {
           permission = await Geolocator.requestPermission();
           if (permission == LocationPermission.denied) {
-            if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Từ chối quyền định vị')));
+            if (mounted)
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Từ chối quyền định vị')),
+              );
             return;
           }
         }
         if (permission == LocationPermission.deniedForever) {
-          if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Quyền định vị bị từ chối vĩnh viễn.')));
+          if (mounted)
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Quyền định vị bị từ chối vĩnh viễn.'),
+              ),
+            );
           return;
         }
 
         // Đã có quyền, lấy vị trí hiện tại
         try {
-          if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Đang lấy vị trí...')));
-          Position position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
-          print('Current Location: lat=${position.latitude}, lng=${position.longitude}');
+          if (mounted)
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(const SnackBar(content: Text('Đang lấy vị trí...')));
+          Position position = await Geolocator.getCurrentPosition(
+            desiredAccuracy: LocationAccuracy.high,
+          );
+          print(
+            'Current Location: lat=${position.latitude}, lng=${position.longitude}',
+          );
           setState(() {
             _userLat = position.latitude;
             _userLng = position.longitude;
@@ -104,7 +128,10 @@ class _ExploreScreenState extends State<ExploreScreen> {
           });
           if (mounted) ScaffoldMessenger.of(context).hideCurrentSnackBar();
         } catch (e) {
-          if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Lỗi định vị: $e')));
+          if (mounted)
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(SnackBar(content: Text('Lỗi định vị: $e')));
         }
       } else {
         setState(() {
@@ -127,15 +154,16 @@ class _ExploreScreenState extends State<ExploreScreen> {
         radiusInKm: _selectedRadius!,
       );
     }
-    
+
     // Truy vấn mặc định (Toàn quốc)
     return FirebaseFirestore.instance
         .collection('rooms')
         .where('status', isEqualTo: 'available')
         .snapshots()
-        .map((snap) => snap.docs
-            .map((d) => RoomModel.fromMap(d.data(), d.id))
-            .toList());
+        .map(
+          (snap) =>
+              snap.docs.map((d) => RoomModel.fromMap(d.data(), d.id)).toList(),
+        );
   }
 
   String? _getDistanceString(RoomModel room) {
@@ -160,11 +188,16 @@ class _ExploreScreenState extends State<ExploreScreen> {
 
   List<RoomModel> _applyFilters(List<RoomModel> rooms) {
     return rooms.where((r) {
-      final matchesSearch = _searchQuery.isEmpty ||
+      final matchesSearch =
+          _searchQuery.isEmpty ||
           r.title.toLowerCase().contains(_searchQuery.toLowerCase());
-      final matchesAmenity = _selectedAmenity == null ||
-          r.amenities.contains(_selectedAmenity);
-      return matchesSearch && matchesAmenity;
+      final matchesPrice =
+          _selectedPriceRange == null ||
+          ((_selectedPriceRange!.min == null ||
+                  r.basePrice >= _selectedPriceRange!.min!) &&
+              (_selectedPriceRange!.max == null ||
+                  r.basePrice <= _selectedPriceRange!.max!));
+      return matchesSearch && matchesPrice;
     }).toList();
   }
 
@@ -233,12 +266,23 @@ class _ExploreScreenState extends State<ExploreScreen> {
             return Padding(
               padding: const EdgeInsets.only(right: 8),
               child: FilterChip(
-                avatar: isSelected ? const Icon(Icons.near_me, size: 16, color: Colors.black) : const Icon(Icons.near_me, size: 16, color: Colors.white70),
-                label: Text('Gần tôi (<${r.toInt()}km)',
-                    style: TextStyle(
-                        color: isSelected ? Colors.black : Colors.white70,
-                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                        fontSize: 12)),
+                avatar: isSelected
+                    ? const Icon(Icons.near_me, size: 16, color: Colors.black)
+                    : const Icon(
+                        Icons.near_me,
+                        size: 16,
+                        color: Colors.white70,
+                      ),
+                label: Text(
+                  'Gần tôi (<${r.toInt()}km)',
+                  style: TextStyle(
+                    color: isSelected ? Colors.black : Colors.white70,
+                    fontWeight: isSelected
+                        ? FontWeight.bold
+                        : FontWeight.normal,
+                    fontSize: 12,
+                  ),
+                ),
                 selected: isSelected,
                 selectedColor: const Color(0xFFFFD700),
                 backgroundColor: const Color(0xFF1A1A1A),
@@ -247,24 +291,29 @@ class _ExploreScreenState extends State<ExploreScreen> {
               ),
             );
           }),
-          // Amenity filter chips
-          ..._amenityOptions.map((a) => Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: FilterChip(
-                  label: Text(a,
-                      style: TextStyle(
-                          color: _selectedAmenity == a
-                              ? Colors.black
-                              : Colors.white70,
-                          fontSize: 12)),
-                  selected: _selectedAmenity == a,
-                  selectedColor: const Color(0xFFFFD700),
-                  backgroundColor: const Color(0xFF1A1A1A),
-                  checkmarkColor: Colors.black,
-                  onSelected: (sel) => setState(
-                      () => _selectedAmenity = sel ? a : null),
+          // Price filter chips
+          ..._priceRanges.map(
+            (pr) => Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: FilterChip(
+                label: Text(
+                  pr.label,
+                  style: TextStyle(
+                    color: _selectedPriceRange == pr
+                        ? Colors.black
+                        : Colors.white70,
+                    fontSize: 12,
+                  ),
                 ),
-              )),
+                selected: _selectedPriceRange == pr,
+                selectedColor: const Color(0xFFFFD700),
+                backgroundColor: const Color(0xFF1A1A1A),
+                checkmarkColor: Colors.black,
+                onSelected: (sel) =>
+                    setState(() => _selectedPriceRange = sel ? pr : null),
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -276,20 +325,26 @@ class _ExploreScreenState extends State<ExploreScreen> {
       builder: (context, snapshot) {
         if (snapshot.hasError) {
           return Center(
-            child: Text('Lỗi tải dữ liệu',
-                style: TextStyle(color: Colors.red[300])),
+            child: Text(
+              'Lỗi tải dữ liệu',
+              style: TextStyle(color: Colors.red[300]),
+            ),
           );
         }
         if (!snapshot.hasData) {
-          return const Center(child: CircularProgressIndicator(color: Color(0xFFFFD700)));
+          return const Center(
+            child: CircularProgressIndicator(color: Color(0xFFFFD700)),
+          );
         }
 
         final rooms = _applyFilters(snapshot.data!);
 
         if (rooms.isEmpty) {
           return const Center(
-            child: Text('Không tìm thấy phòng phù hợp',
-                style: TextStyle(color: Colors.white54)),
+            child: Text(
+              'Không tìm thấy phòng phù hợp',
+              style: TextStyle(color: Colors.white54),
+            ),
           );
         }
 
@@ -327,47 +382,54 @@ class _ExploreScreenState extends State<ExploreScreen> {
             // Image with heart overlay
             Stack(
               children: [
-            ClipRRect(
-              borderRadius:
-                  const BorderRadius.vertical(top: Radius.circular(16)),
-              child: room.images.isNotEmpty
-                  ? Image.network(
-                      room.images.first,
-                      height: 180,
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) => Container(
-                        height: 180,
-                        color: const Color(0xFF2A2A2A),
-                        child: const Icon(Icons.image_not_supported,
-                            color: Colors.white24, size: 48),
-                      ),
-                    )
-                  : Container(
-                      height: 180,
-                      color: const Color(0xFF2A2A2A),
-                      child: const Icon(Icons.meeting_room,
-                          color: Colors.white24, size: 48),
-                    ),
-            ),
+                ClipRRect(
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(16),
+                  ),
+                  child: room.images.isNotEmpty
+                      ? Image.network(
+                          room.images.first,
+                          height: 180,
+                          width: double.infinity,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) =>
+                              Container(
+                                height: 180,
+                                color: const Color(0xFF2A2A2A),
+                                child: const Icon(
+                                  Icons.image_not_supported,
+                                  color: Colors.white24,
+                                  size: 48,
+                                ),
+                              ),
+                        )
+                      : Container(
+                          height: 180,
+                          color: const Color(0xFF2A2A2A),
+                          child: const Icon(
+                            Icons.meeting_room,
+                            color: Colors.white24,
+                            size: 48,
+                          ),
+                        ),
+                ),
                 // Heart button
                 if (_uid != null)
                   Positioned(
                     top: 10,
                     right: 10,
                     child: GestureDetector(
-                      onTap: () => _favService.toggleFavorite(
-                          _uid!, room.id, isFav),
+                      onTap: () =>
+                          _favService.toggleFavorite(_uid!, room.id, isFav),
                       child: Container(
                         padding: const EdgeInsets.all(6),
                         decoration: const BoxDecoration(
-                            color: Colors.black45,
-                            shape: BoxShape.circle),
+                          color: Colors.black45,
+                          shape: BoxShape.circle,
+                        ),
                         child: Icon(
                           isFav ? Icons.favorite : Icons.favorite_border,
-                          color: isFav
-                              ? Colors.redAccent
-                              : Colors.white70,
+                          color: isFav ? Colors.redAccent : Colors.white70,
                           size: 20,
                         ),
                       ),
@@ -380,11 +442,14 @@ class _ExploreScreenState extends State<ExploreScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(room.title,
-                      style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16)),
+                  Text(
+                    room.title,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
                   Builder(
                     builder: (context) {
                       final distanceStr = _getDistanceString(room);
@@ -393,8 +458,11 @@ class _ExploreScreenState extends State<ExploreScreen> {
                           padding: const EdgeInsets.only(top: 6),
                           child: Row(
                             children: [
-                              const Icon(Icons.near_me_outlined,
-                                  size: 14, color: Colors.white38),
+                              const Icon(
+                                Icons.near_me_outlined,
+                                size: 14,
+                                color: Colors.white38,
+                              ),
                               const SizedBox(width: 6),
                               Expanded(
                                 child: Text(
@@ -421,8 +489,11 @@ class _ExploreScreenState extends State<ExploreScreen> {
                             padding: const EdgeInsets.only(top: 6),
                             child: Row(
                               children: [
-                                const Icon(Icons.location_on_outlined,
-                                    size: 14, color: Colors.white38),
+                                const Icon(
+                                  Icons.location_on_outlined,
+                                  size: 14,
+                                  color: Colors.white38,
+                                ),
                                 const SizedBox(width: 6),
                                 Expanded(
                                   child: Text(
@@ -448,7 +519,9 @@ class _ExploreScreenState extends State<ExploreScreen> {
                       Text(
                         FormatUtils.vnd(room.basePrice),
                         style: const TextStyle(
-                            color: Color(0xFFFFD700), fontSize: 14),
+                          color: Color(0xFFFFD700),
+                          fontSize: 14,
+                        ),
                       ),
                       Text(
                         ' / giờ',
@@ -465,16 +538,21 @@ class _ExploreScreenState extends State<ExploreScreen> {
                       spacing: 6,
                       children: room.amenities
                           .take(4)
-                          .map((a) => Chip(
-                                label: Text(a,
-                                    style: const TextStyle(
-                                        fontSize: 10,
-                                        color: Colors.white70)),
-                                backgroundColor: const Color(0xFF2A2A2A),
-                                padding: EdgeInsets.zero,
-                                materialTapTargetSize:
-                                    MaterialTapTargetSize.shrinkWrap,
-                              ))
+                          .map(
+                            (a) => Chip(
+                              label: Text(
+                                a,
+                                style: const TextStyle(
+                                  fontSize: 10,
+                                  color: Colors.white70,
+                                ),
+                              ),
+                              backgroundColor: const Color(0xFF2A2A2A),
+                              padding: EdgeInsets.zero,
+                              materialTapTargetSize:
+                                  MaterialTapTargetSize.shrinkWrap,
+                            ),
+                          )
                           .toList(),
                     ),
                   ],

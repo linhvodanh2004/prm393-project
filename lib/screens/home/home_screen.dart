@@ -21,6 +21,7 @@ import '../host/host_calendar_screen.dart';
 import '../admin/manage_users_screen.dart';
 import '../admin/admin_rooms_screen.dart';
 import '../admin/admin_bookings_screen.dart';
+import '../admin/admin_payments_screen.dart';
 
 // Voucher Screens (shared)
 import '../host/manage_vouchers_screen.dart';
@@ -160,6 +161,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ManageUsersScreen(),
           AdminRoomsScreen(),
           AdminBookingsScreen(),
+          AdminPaymentsScreen(),
           ManageVouchersScreen(role: 'ADMIN'),
         ];
       case 'HOST':
@@ -201,6 +203,11 @@ class _HomeScreenState extends State<HomeScreen> {
             icon: Icon(Icons.event_note_outlined),
             activeIcon: Icon(Icons.event_note_rounded),
             label: 'Booking',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.account_balance_wallet_outlined),
+            activeIcon: Icon(Icons.account_balance_wallet),
+            label: 'Rút tiền',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.local_offer_outlined),

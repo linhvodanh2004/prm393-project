@@ -22,7 +22,12 @@ class BookingModel {
   final String? voucherCode;
   final String? voucherScope;   // 'HOST' | 'GLOBAL'
   final String? voucherHostId;
-  final double? voucherDiscountAmount;
+  final double voucherDiscountAmount; // Changed to non-nullable
+
+  final String paymentMethod;
+  final String? paymentLinkId;
+  final String? cancelReason;
+  final String? refundStatus;
 
   BookingModel({
     required this.id,
@@ -43,7 +48,11 @@ class BookingModel {
     this.voucherCode,
     this.voucherScope,
     this.voucherHostId,
-    this.voucherDiscountAmount,
+    this.voucherDiscountAmount = 0.0, // Changed to non-nullable with default
+    this.paymentMethod = 'CASH',
+    this.paymentLinkId,
+    this.cancelReason,
+    this.refundStatus,
   });
 
   factory BookingModel.fromMap(Map<String, dynamic> data, String documentId) {
@@ -69,7 +78,11 @@ class BookingModel {
       voucherScope: data['voucherScope'],
       voucherHostId: data['voucherHostId'],
       voucherDiscountAmount:
-          (data['voucherDiscountAmount'] as num?)?.toDouble(),
+          (data['voucherDiscountAmount'] as num?)?.toDouble() ?? 0.0, // Changed to non-nullable with default
+      paymentMethod: data['paymentMethod'] ?? 'CASH',
+      paymentLinkId: data['paymentLinkId'],
+      cancelReason: data['cancelReason'],
+      refundStatus: data['refundStatus'],
     );
   }
 
@@ -92,8 +105,12 @@ class BookingModel {
       if (voucherCode != null) 'voucherCode': voucherCode,
       if (voucherScope != null) 'voucherScope': voucherScope,
       if (voucherHostId != null) 'voucherHostId': voucherHostId,
-      if (voucherDiscountAmount != null)
+      if (voucherDiscountAmount > 0) // Changed condition
         'voucherDiscountAmount': voucherDiscountAmount,
+      'paymentMethod': paymentMethod,
+      if (paymentLinkId != null) 'paymentLinkId': paymentLinkId,
+      if (cancelReason != null) 'cancelReason': cancelReason,
+      if (refundStatus != null) 'refundStatus': refundStatus,
     };
   }
 
@@ -122,6 +139,8 @@ class BookingModel {
       voucherScope: voucherScope,
       voucherHostId: voucherHostId,
       voucherDiscountAmount: voucherDiscountAmount,
+      paymentMethod: paymentMethod,
+      paymentLinkId: paymentLinkId,
     );
   }
 }

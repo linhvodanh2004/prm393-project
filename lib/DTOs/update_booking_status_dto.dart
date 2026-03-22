@@ -9,9 +9,13 @@ class UpdateBookingStatusDTO {
   /// pass 'ADMIN' for admin force-actions.
   final String? actorId;
 
+  /// Optional reason when rejecting or cancelling a booking.
+  final String? cancelReason;
+
   const UpdateBookingStatusDTO({
     required this.newStatus,
     this.actorId,
+    this.cancelReason,
   });
 
   static const _validStatuses = {

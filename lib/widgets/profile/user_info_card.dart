@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../models/user_model.dart';
 import '../../utils/format_utils.dart';
+import '../../services/medal_service.dart';
 
 class UserInfoCard extends StatelessWidget {
   final UserModel userData;
@@ -61,13 +62,27 @@ class UserInfoCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Thông tin tài khoản',
-            style: TextStyle(
-              color: Colors.white.withOpacity(0.9),
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
-            ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Thông tin tài khoản',
+                style: TextStyle(
+                  color: Colors.white.withOpacity(0.9),
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              FutureBuilder<MedalTier>(
+                future: MedalService().getMedalTier(userData.uid, isHost: userData.role.toUpperCase() == 'HOST'),
+                builder: (context, snapshot) {
+                  if (snapshot.hasData && snapshot.data != MedalTier.NONE) {
+                    return MedalService.buildMedalBadge(snapshot.data!);
+                  }
+                  return const SizedBox.shrink();
+                },
+              ),
+            ],
           ),
           const SizedBox(height: 16),
           Divider(color: Colors.white.withOpacity(0.1)),
