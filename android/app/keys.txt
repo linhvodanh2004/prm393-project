@@ -1,0 +1,26 @@
+﻿Alias name: release
+Creation date: 25 thg 3, 2026
+Entry type: PrivateKeyEntry
+Certificate chain length: 1
+Certificate[1]:
+Owner: CN=User, OU=PRM393, O=FPT, L=HCM, ST=HCM, C=VN
+Issuer: CN=User, OU=PRM393, O=FPT, L=HCM, ST=HCM, C=VN
+Serial number: 1a782da62075801b
+Valid from: Wed Mar 25 10:47:55 ICT 2026 until: Sun Aug 10 10:47:55 ICT 2053
+Certificate fingerprints:
+	 SHA1: 8B:A8:BA:1F:B3:F2:54:30:8D:37:DC:30:1B:F2:6C:B5:13:7F:92:EC
+	 SHA256: 31:72:A5:FE:0E:BB:99:C8:D6:6B:88:57:86:CA:E9:95:80:F7:00:37:2C:E7:7C:70:5C:F6:88:32:7A:99:94:F4
+Signature algorithm name: SHA384withRSA
+Subject Public Key Algorithm: 2048-bit RSA key
+Version: 3
+
+Extensions: 
+
+#1: ObjectId: 2.5.29.14 Criticality=false
+SubjectKeyIdentifier [
+KeyIdentifier [
+0000: A0 17 D6 9D 8C 9F 0B 1F   66 6A 4C 06 FD CB 92 F4  ........fjL.....
+0010: 19 63 CA 6F                                        .c.o
+]
+]
+
