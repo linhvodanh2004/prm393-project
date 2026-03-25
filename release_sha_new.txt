@@ -1,0 +1,37 @@
+Keystore type: PKCS12
+Keystore provider: SUN
+
+Your keystore contains 1 entry
+
+Alias name: upload
+Creation date: 25 thg 3, 2026
+Entry type: PrivateKeyEntry
+Certificate chain length: 1
+Certificate[1]:
+Owner: CN=PRM393, OU=PRM393, O=PRM393, L=Hanoi, ST=Vietnam, C=VN
+Issuer: CN=PRM393, OU=PRM393, O=PRM393, L=Hanoi, ST=Vietnam, C=VN
+Serial number: e92b7580da3857a8
+Valid from: Wed Mar 25 23:37:13 ICT 2026 until: Sun Aug 10 23:37:13 ICT 2053
+Certificate fingerprints:
+	 SHA1: 87:D8:15:73:AD:CF:F7:1D:48:AE:51:CE:0D:98:13:CA:82:3C:67:A8
+	 SHA256: A6:B4:EF:EE:8F:F5:FD:FF:D6:E4:05:97:72:08:CF:24:58:CC:D6:DF:27:E0:BC:DD:61:61:30:01:CE:0C:84:38
+Signature algorithm name: SHA384withRSA
+Subject Public Key Algorithm: 2048-bit RSA key
+Version: 3
+
+Extensions: 
+
+#1: ObjectId: 2.5.29.14 Criticality=false
+SubjectKeyIdentifier [
+KeyIdentifier [
+0000: 2B 4F 9E 3C B1 93 59 B9   4F 5C A5 B2 8E 09 96 BB  +O.<..Y.O\......
+0010: A9 B9 03 00                                        ....
+]
+]
+
+
+
+*******************************************
+*******************************************
+
+

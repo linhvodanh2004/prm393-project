@@ -34,10 +34,10 @@ android {
 
     signingConfigs {
         create("release") {
-            keyAlias = "release"
-            keyPassword = "android"
-            storeFile = file("release-keystore.jks")
-            storePassword = "android"
+            storeFile = file(System.getenv("KEYSTORE_FILE") ?: "release-key.jks")
+            storePassword = System.getenv("KEYSTORE_PASSWORD") ?: "prm393_project"
+            keyAlias = System.getenv("KEY_ALIAS") ?: "upload"
+            keyPassword = System.getenv("KEY_PASSWORD") ?: "prm393_project"
         }
     }
 
